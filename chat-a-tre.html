@@ -217,11 +217,29 @@
   // ---------- Claude ----------
   function wantsClaude(t){ return /(^|\s|@)@claude\b/i.test(t) || /@claude/i.test(t); }
 
+  // Quanta conversazione passiamo a Claude: al massimo questi messaggi e questi
+  // caratteri, presi dalla fine (i piu' recenti). Il tetto in caratteri serve
+  // perche' pochi messaggi lunghissimi pesano piu' di tanti messaggi brevi.
+  var MEMORIA_MSG = 60, MEMORIA_CARATTERI = 12000;
+
+  function ultimi(items){ return items.slice(-MEMORIA_MSG); }
+
   function transcript(items){
-    return items.slice(-40).map(function(it){
+    var righe = items.map(function(it){
       var nm = it.kind==="claude" ? "Claude" : ((S.profiles[it.authorId]||{}).name || "Partecipante");
-      return nm+": "+(it.text||"");
-    }).join("\n");
+      var d = new Date(it.ts);
+      var giorno = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+      return "["+giorno+" "+hhmm(it.ts)+"] "+nm+": "+(it.text||"");
+    });
+    // Riempio partendo dal fondo finche' sto nel tetto: l'ultimo messaggio
+    // (quello che ha chiamato Claude) c'e' sempre, anche se e' lunghissimo.
+    var out=[], tot=0;
+    for(var i=righe.length-1; i>=0; i--){
+      tot += righe[i].length+1;
+      if(tot>MEMORIA_CARATTERI && out.length) break;
+      out.unshift(righe[i]);
+    }
+    return out.join("\n");
   }
 
   function askClaude(){
@@ -229,16 +247,33 @@
     S.busy=true; send.disabled=true;
     S.streaming={text:""}; render();
 
-    var prompt =
-      "Sei un partecipante in una conversazione a due persone. Qui sotto trovi la trascrizione recente.\n"+
-      "Uno dei due ti ha appena chiamato con @claude.\n\n"+
-      "--- TRASCRIZIONE ---\n"+transcript(allItems())+"\n--- FINE ---\n\n"+
-      "Rispondi in italiano, dando del tu, come un terzo partecipante: breve (2-6 frasi), "+
-      "al punto, senza preamboli, senza ripetere la domanda e senza firmarti. "+
-      "Se ti mancano informazioni per rispondere bene, dillo e chiedi il dato che manca.";
+    var items = ultimi(allItems());
 
-    S.sample(prompt, {
-      onText: function(ev){ if(S.streaming){ S.streaming.text = ev.text; render(); } }
+    // Prima di scrivere il prompt risolvo i nomi di chi compare nella
+    // trascrizione: senza questo passaggio, alla prima domanda della sessione
+    // Claude leggerebbe "Partecipante" per tutti e non distinguerebbe chi parla.
+    var ids=[];
+    items.forEach(function(it){ if(it.authorId && ids.indexOf(it.authorId)<0) ids.push(it.authorId); });
+    var nomiPronti = (ids.length && S.user && S.user.profiles)
+      ? Promise.resolve(S.user.profiles(ids)).then(function(ps){ if(ps) S.profiles=ps; }, function(){})
+      : Promise.resolve();
+
+    nomiPronti.then(function(){
+      var prompt =
+        "Sei il terzo partecipante di una chat privata fra due persone.\n"+
+        "Qui sotto c'e' la trascrizione recente, in ordine di tempo, con data e ora di ogni messaggio.\n"+
+        "Oggi e' "+today()+". La conversazione puo' essere iniziata giorni fa: tienine conto.\n"+
+        "L'ultimo messaggio ti ha chiamato con @claude: rispondi a quello, "+
+        "ma tenendo presente tutto quello che le due persone si sono dette prima.\n\n"+
+        "--- TRASCRIZIONE ---\n"+transcript(items)+"\n--- FINE ---\n\n"+
+        "Rispondi in italiano, dando del tu, come un terzo partecipante: breve (2-6 frasi), "+
+        "al punto, senza preamboli, senza ripetere la domanda e senza firmarti. "+
+        "Parla alle persone per nome quando serve distinguerle. "+
+        "Se ti mancano informazioni per rispondere bene, dillo e chiedi il dato che manca.";
+
+      return S.sample(prompt, {
+        onText: function(ev){ if(S.streaming){ S.streaming.text = ev.text; render(); } }
+      });
     }).then(function(res){
       S.streaming=null;
       persist({id:uid(), ts:Date.now(), kind:"claude", authorId:S.uid, text:(res.text||"").trim()});

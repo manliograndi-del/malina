@@ -116,6 +116,25 @@ const { text, truncated } = await sample(prompt, {
   di risposta che si può tenere a schermo. Codici da gestire: `not_granted`
   (consenso negato), `rate_limited`, `cancelled`. **Mai** riprovare in ciclo.
 
+### Quanta conversazione vede Claude
+
+`sample` non ha memoria: tutto quello che Claude sa della chat sta nel prompt che
+la pagina costruisce al momento della chiamata. Quindi la trascrizione **non è un
+dettaglio, è la memoria**. Regole da non rompere:
+
+- si passano gli ultimi `MEMORIA_MSG` messaggi (60), tagliati a
+  `MEMORIA_CARATTERI` (12000) partendo dal fondo; l'ultimo messaggio — quello che
+  ha chiamato Claude — entra sempre, anche se da solo supera il tetto;
+- ogni riga porta data, ora e nome di chi ha parlato, e le risposte di Claude
+  rientrano nella trascrizione come `Claude:` (così ricorda cosa ha già detto);
+- i nomi vanno risolti con `user.profiles()` **prima** di costruire il prompt:
+  se si usa la cache del render, alla prima chiamata della sessione è ancora
+  vuota e Claude legge "Partecipante" per entrambi, senza distinguere chi parla.
+
+Il limite più a monte è la sottoscrizione: `limit(40)` documenti, cioè un
+documento per giorno e per persona, circa venti giorni di conversazione a due.
+Più indietro di così la pagina non carica, quindi Claude non può vederlo.
+
 ---
 
 ## Modello dei dati (non cambiarlo senza motivo)
