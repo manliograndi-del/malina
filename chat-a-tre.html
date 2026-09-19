@@ -14,7 +14,7 @@
     --bg:#f7f6f3; --panel:#ffffff; --ink:#1d1c1a; --ink-soft:#6b6863;
     --line:#e3e0da; --mine:#1f6feb; --mine-ink:#ffffff;
     --claude-bg:#f3ecdf; --claude-line:#d9c9a8; --danger:#a13d2d;
-    --cuore:#d2635f;
+    --cuore:#d81414;
     /* Bolle semitrasparenti: il cuore si vede attraverso i messaggi.
        Il blu e' un po' piu' scuro dell'originale perche' con la
        trasparenza il testo bianco sopra resti leggibile. */
@@ -78,13 +78,27 @@
     border-radius:12px; background:var(--panel); font-size:14px; color:var(--ink-soft);
   }
 
+  /* scorciatoie per chiedere un parere a Claude */
+  .scorciatoie{display:flex; gap:8px; flex-wrap:wrap; margin:0 0 8px}
+  .chip{
+    font:inherit; font-size:13px; line-height:1.2; padding:7px 12px; min-height:34px;
+    border:1px solid var(--claude-line); background:var(--bolla-claude);
+    color:var(--ink); border-radius:999px; cursor:pointer;
+  }
+  .chip:disabled{opacity:.4; cursor:default}
+  /* tasto per spegnere il suono del battito */
+  #suono{
+    border:none; background:none; padding:0 0 0 10px; min-height:0;
+    font-size:16px; line-height:1; opacity:.75;
+  }
+
   /* ---------- cuore di sfondo ---------- */
   /* Sta dietro a tutto e non intercetta tocchi: e' solo decorazione. */
   #cuore{
     position:fixed; inset:0; z-index:0; pointer-events:none;
     display:flex; align-items:center; justify-content:center;
   }
-  #cuore svg{width:min(92vw,440px); height:auto; opacity:.14; overflow:visible}
+  #cuore svg{width:min(92vw,440px); height:auto; opacity:.6; overflow:visible}
   #gruppo{transform-origin:50px 48px}
   .meta{
     fill:var(--cuore); transform-origin:50px 48px;
@@ -125,12 +139,17 @@
 <header>
   <h1>Chat</h1>
   <span class="who" id="who"></span>
+  <button id="suono" type="button" title="Suono del battito">&#128266;</button>
 </header>
 
 <div id="banner" class="banner" hidden></div>
 <div id="log"><p class="empty" id="empty">Caricamento…</p></div>
 
 <footer>
+  <div class="scorciatoie">
+    <button class="chip" id="chip-ultimo" type="button" disabled>&#10022; Sull'ultimo messaggio</button>
+    <button class="chip" id="chip-scambi" type="button" disabled>&#10022; Sugli ultimi 3 scambi</button>
+  </div>
   <div class="bar">
     <button id="mention" type="button" title="Chiama Claude">✦</button>
     <textarea id="input" rows="1" placeholder="Scrivi un messaggio…" disabled></textarea>
@@ -160,13 +179,92 @@
       input=document.getElementById("input"), send=document.getElementById("send"),
       mention=document.getElementById("mention"), hint=document.getElementById("hint"),
       who=document.getElementById("who"), banner=document.getElementById("banner"),
-      cuore=document.getElementById("cuore");
+      cuore=document.getElementById("cuore"),
+      tastoSuono=document.getElementById("suono"),
+      chipUltimo=document.getElementById("chip-ultimo"),
+      chipScambi=document.getElementById("chip-scambi");
 
   function today(){ return new Date().toISOString().slice(0,10); }
   function uid(){ return Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8); }
   function hhmm(ts){ var d=new Date(ts); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
   function esc(t){ var n=document.createElement("div"); n.textContent=t; return n; }
   function showBanner(msg, bad){ banner.hidden=false; banner.textContent=msg; banner.classList.toggle("err", !!bad); }
+
+  // ---------- suono del battito ----------
+  // Il suono e' generato dalla pagina (niente file da scaricare, che il
+  // progetto vieta): un tonfo grave piu' un fruscio filtrato, come il
+  // battito che si sente da un'ecografia.
+  // ISTANTI DEI BATTITI, in secondi dall'inizio dell'animazione. Devono
+  // restare uguali ai picchi dei keyframes "batti" nel CSS (6%, 31%, 56%,
+  // 81% di 2s, piu' mezzo secondo di attesa perche' le meta' si riuniscano).
+  var BATTITI = [0.62, 1.12, 1.62, 2.12];
+  var audio=null, rumore=null, suonoAcceso=true;
+
+  try{ suonoAcceso = localStorage.getItem("battito") !== "muto"; }catch(e){}
+
+  // L'audio puo' partire solo dopo che la persona ha toccato la pagina
+  // (lo impongono i browser): lo preparo al primo tocco, qualunque esso sia.
+  function preparaAudio(){
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    try{
+      if(!audio){
+        audio = new AC();
+        var n = Math.floor(audio.sampleRate*0.3);
+        rumore = audio.createBuffer(1, n, audio.sampleRate);
+        var d = rumore.getChannelData(0), scorso=0;
+        for(var i=0;i<n;i++){ var bianco=Math.random()*2-1; scorso=(scorso+0.02*bianco)/1.02; d[i]=scorso*3.2; }
+      }
+      if(audio.state==="suspended") audio.resume();
+    }catch(e){ audio=null; }
+  }
+
+  function tonfo(quando, forza){
+    if(!audio) return;
+    try{
+      var o=audio.createOscillator(), g=audio.createGain();
+      o.type="sine";
+      o.frequency.setValueAtTime(80, quando);
+      o.frequency.exponentialRampToValueAtTime(32, quando+0.16);
+      g.gain.setValueAtTime(0.0001, quando);
+      g.gain.exponentialRampToValueAtTime(forza, quando+0.025);
+      g.gain.exponentialRampToValueAtTime(0.0001, quando+0.26);
+      o.connect(g); g.connect(audio.destination);
+      o.start(quando); o.stop(quando+0.3);
+
+      var f=audio.createBufferSource(), passa=audio.createBiquadFilter(), gf=audio.createGain();
+      f.buffer=rumore; passa.type="lowpass"; passa.frequency.setValueAtTime(300, quando);
+      gf.gain.setValueAtTime(0.0001, quando);
+      gf.gain.exponentialRampToValueAtTime(forza*0.55, quando+0.03);
+      gf.gain.exponentialRampToValueAtTime(0.0001, quando+0.2);
+      f.connect(passa); passa.connect(gf); gf.connect(audio.destination);
+      f.start(quando); f.stop(quando+0.25);
+    }catch(e){}
+  }
+
+  // Quattro battiti, ognuno in due tempi (il "tu-tum"), agganciati ai
+  // momenti in cui il disegno si gonfia.
+  function suonaBattito(){
+    if(!suonoAcceso || !audio || audio.state!=="running") return;
+    var ora=audio.currentTime;
+    BATTITI.forEach(function(t){
+      tonfo(ora+t, 0.42);
+      tonfo(ora+t+0.17, 0.24);
+    });
+  }
+
+  function aggiornaTastoSuono(){
+    tastoSuono.textContent = suonoAcceso ? "\uD83D\uDD0A" : "\uD83D\uDD07";
+    tastoSuono.setAttribute("aria-label", suonoAcceso ? "Battito con suono" : "Battito silenzioso");
+  }
+  tastoSuono.addEventListener("click", function(){
+    suonoAcceso = !suonoAcceso;
+    try{ localStorage.setItem("battito", suonoAcceso ? "acceso" : "muto"); }catch(e){}
+    aggiornaTastoSuono();
+    if(suonoAcceso){ preparaAudio(); suonaBattito(); }
+  });
+  aggiornaTastoSuono();
+  document.addEventListener("pointerdown", preparaAudio, {once:true});
 
   // ---------- cuore ----------
   // Le due meta' si ricongiungono e battono quattro volte, poi tornano
@@ -178,6 +276,7 @@
     cuore.classList.remove("unito");
     void cuore.offsetWidth;          // fa ripartire l'animazione da capo
     cuore.classList.add("unito");
+    suonaBattito();
     cuoreTimer=setTimeout(function(){ cuore.classList.remove("unito"); }, 2700);
   }
 
@@ -311,15 +410,17 @@
     return out.join("\n");
   }
 
-  function askClaude(){
-    if(!S.sample || S.busy) return;
-    S.busy=true; send.disabled=true;
+  // Una sola strada per interpellare Claude: cambia solo il compito che gli
+  // si affida e la fetta di conversazione che gli si mette sotto gli occhi.
+  // "compito" puo' essere una funzione, cosi' la frase si compone quando i
+  // nomi delle persone sono gia' stati risolti.
+  function chiediAClaude(items, compito){
+    if(!S.sample || S.busy || !items.length) return;
+    S.busy=true; abilitaComandi(false);
     S.streaming={text:""}; render();
 
-    var items = ultimi(allItems());
-
     // Prima di scrivere il prompt risolvo i nomi di chi compare nella
-    // trascrizione: senza questo passaggio, alla prima domanda della sessione
+    // trascrizione: senza questo passaggio, alla prima chiamata della sessione
     // Claude leggerebbe "Partecipante" per tutti e non distinguerebbe chi parla.
     var ids=[];
     items.forEach(function(it){ if(it.authorId && ids.indexOf(it.authorId)<0) ids.push(it.authorId); });
@@ -330,10 +431,9 @@
     nomiPronti.then(function(){
       var prompt =
         "Sei il terzo partecipante di una chat privata fra due persone.\n"+
-        "Qui sotto c'e' la trascrizione recente, in ordine di tempo, con data e ora di ogni messaggio.\n"+
+        "Qui sotto c'e' la conversazione recente, in ordine di tempo, con data e ora di ogni messaggio.\n"+
         "Oggi e' "+today()+". La conversazione puo' essere iniziata giorni fa: tienine conto.\n"+
-        "L'ultimo messaggio ti ha chiamato con @claude: rispondi a quello, "+
-        "ma tenendo presente tutto quello che le due persone si sono dette prima.\n\n"+
+        (typeof compito==="function" ? compito() : compito)+"\n\n"+
         "--- TRASCRIZIONE ---\n"+transcript(items)+"\n--- FINE ---\n\n"+
         "Rispondi in italiano, dando del tu, come un terzo partecipante: breve (2-6 frasi), "+
         "al punto, senza preamboli, senza ripetere la domanda e senza firmarti. "+
@@ -354,18 +454,98 @@
         not_granted:"Hai rifiutato l'uso di Claude in questa pagina. Ricarica per riprovare.",
         rate_limited:"Troppe richieste ravvicinate: aspetta un momento.",
         cancelled:""
-      }[e && e.code] || "Claude non è riuscito a rispondere.";
+      }[e && e.code] || "Claude non e' riuscito a rispondere.";
       if(m) showBanner(m, true);
       render();
     }).then(function(){
-      S.busy=false; send.disabled=false; input.focus();
+      S.busy=false; abilitaComandi(true); input.focus();
     });
   }
+
+  function abilitaComandi(si){
+    send.disabled = !si;
+    chipUltimo.disabled = !si || !S.sample;
+    chipScambi.disabled = !si || !S.sample;
+  }
+
+  // Chiamata scrivendo @claude dentro un messaggio.
+  function askClaude(){
+    chiediAClaude(ultimi(allItems()),
+      "L'ultimo messaggio ti ha chiamato con @claude: rispondi a quello, "+
+      "ma tenendo presente tutto quello che le due persone si sono dette prima.");
+  }
+
+  // ---------- scambi ----------
+  // Uno "scambio" e' tutto quello che una persona scrive di fila prima che
+  // l'altra risponda: tre messaggi di seguito della stessa persona valgono
+  // un solo scambio. Le risposte di Claude non contano come scambio.
+  function scambi(items){
+    var out=[];
+    items.forEach(function(it){
+      if(it.kind!=="human") return;
+      var ultimo=out[out.length-1];
+      if(ultimo && ultimo.authorId===it.authorId) ultimo.items.push(it);
+      else out.push({authorId:it.authorId, items:[it]});
+    });
+    return out;
+  }
+
+  function ultimoDellAltro(items){
+    for(var i=items.length-1;i>=0;i--){
+      if(items[i].kind==="human" && items[i].authorId!==S.uid) return items[i];
+    }
+    return null;
+  }
+
+  function nomeDi(id){ return (S.profiles[id]||{}).name || "l'altra persona"; }
+
+  function chiediUltimoMessaggio(){
+    var tutti=allItems(), msg=ultimoDellAltro(tutti);
+    if(!msg){
+      showBanner("L'altra persona non ha ancora scritto niente: non c'e' un messaggio su cui dire la sua.", false);
+      return;
+    }
+    // Gli do il contesto recente, ma gli chiedo di commentare quel messaggio li'.
+    chiediAClaude(ultimi(tutti), function(){
+      return "Nessuno ti ha chiamato con @claude: ti e' stato chiesto con un pulsante "+
+             "che cosa pensi dell'ultimo messaggio scritto da "+nomeDi(msg.authorId)+", "+
+             "quello delle "+hhmm(msg.ts)+" che dice: \u00ab"+(msg.text||"")+"\u00bb.\n"+
+             "Commenta quel messaggio: come lo leggi, che cosa ne pensi, e se puo' servire "+
+             "che cosa suggeriresti di rispondere. Il resto della trascrizione e' solo contesto.";
+    });
+  }
+
+  function chiediUltimiScambi(){
+    var tutti=allItems(), tutti_scambi=scambi(tutti);
+    if(!tutti_scambi.length){
+      showBanner("Non c'e' ancora conversazione su cui dire la sua.", false);
+      return;
+    }
+    var ultimiTre = tutti_scambi.slice(-3);
+    var da = ultimiTre[0].items[0].ts || 0;
+    var finestra = tutti.filter(function(it){ return (it.ts||0) >= da; });
+    if(finestra.length > MEMORIA_MSG) finestra = finestra.slice(-MEMORIA_MSG);
+    chiediAClaude(finestra, function(){
+      var quanti = ultimiTre.length;
+      return "Nessuno ti ha chiamato con @claude: ti e' stato chiesto con un pulsante "+
+             "che cosa pensi degli ultimi "+quanti+" scambi della conversazione"+
+             (quanti<3 ? " (sono tutti quelli che ci sono finora)" : "")+".\n"+
+             "Uno scambio e' tutto quello che una persona ha scritto di fila prima che "+
+             "rispondesse l'altra. Sono gli ultimi della trascrizione, a partire dalle "+
+             hhmm(da)+".\n"+
+             "Di' come sta andando fra loro in questi scambi: che cosa si stanno dicendo "+
+             "davvero, se si stanno capendo, e che cosa noti.";
+    });
+  }
+
+  chipUltimo.addEventListener("click", function(){ preparaAudio(); chiediUltimoMessaggio(); });
+  chipScambi.addEventListener("click", function(){ preparaAudio(); chiediUltimiScambi(); });
 
   // ---------- invio ----------
   function submit(){
     var text=input.value.trim();
     if(!text || !S.db || !S.uid) return;
+    preparaAudio();
     input.value=""; autosize();
     var call = wantsClaude(text);
     persist({id:uid(), ts:Date.now(), kind:"human", authorId:S.uid, text:text});
@@ -408,7 +588,7 @@
         empty.textContent="La chat condivisa non è disponibile in questa vista.";
         return;
       }
-      input.disabled=false; send.disabled=false; autosize();
+      input.disabled=false; abilitaComandi(true); autosize();
       db.collection("messages").orderBy("day","desc").limit(40).onSnapshot(function(snap){
         S.remote=new Map();
         snap.docs.forEach(function(d){ var v=d.data()||{}; S.remote.set(d.id,{day:v.day,authorId:v.authorId,items:v.items||[]}); });
@@ -424,7 +604,8 @@
       return window.claude.use("sample");
     }).then(function(sm){
       S.sample=sm;
-      if(!sm){ hint.innerHTML="Claude non è disponibile in questa vista: la chat resta a due."; }
+      abilitaComandi(!S.busy);
+      if(!sm){ hint.textContent="Claude non è disponibile in questa vista: la chat resta a due."; }
     }).catch(function(){
       showBanner("Inizializzazione non riuscita: ricarica la pagina.", true);
     });

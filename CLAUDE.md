@@ -203,12 +203,41 @@ per `ts`.
   `prefers-color-scheme: dark`. La pagina lo dichiara con `color-scheme: light`
   (nel CSS e nel `<meta>`), altrimenti di notte il telefono scurirebbe da solo
   la casella di scrittura e la barra di scorrimento.
-- Sullo sfondo c'e' un cuore spezzato in SVG inline: le due meta' condividono
-  la stessa linea di frattura, per questo combaciano quando si ricompongono.
-  Batte a ogni messaggio scritto da una persona (non per la cronologia che si
-  carica all'apertura, non per le risposte di Claude). E' decorazione inerte:
-  sta sotto a tutto con `pointer-events:none` e non deve mai poter rompere la
-  chat.
+- Sullo sfondo c'e' un cuore spezzato rosso in SVG inline: le due meta'
+  condividono la stessa linea di frattura, per questo combaciano quando si
+  ricompongono. Batte a ogni messaggio scritto da una persona (non per la
+  cronologia che si carica all'apertura, non per le risposte di Claude). E'
+  decorazione inerte: sta sotto a tutto con `pointer-events:none` e non deve
+  mai poter rompere la chat.
+- Le bolle dei messaggi sono semitrasparenti perche' il cuore si veda anche
+  sotto ai messaggi. **Toccando quelle trasparenze va rimisurato il contrasto
+  del testo**: il bianco sulla bolla blu e' il punto fragile (con il primo
+  tentativo era sceso a 4,5 scarso, sotto la soglia leggibile; il blu e' stato
+  scurito apposta).
+
+### Suono del battito
+
+Generato dalla pagina con l'API audio del browser — un tonfo grave piu' un
+fruscio filtrato — perche' il progetto vieta di caricare file da domini esterni.
+Da sapere:
+
+- l'array `BATTITI` in JavaScript e i picchi dei keyframes `batti` nel CSS
+  descrivono gli stessi istanti: **se si cambia uno, va cambiato l'altro**,
+  altrimenti suono e disegno si sfasano;
+- i browser non fanno partire l'audio prima che la persona abbia toccato la
+  pagina: si prepara al primo tocco (`preparaAudio`). Chi apre la chat e resta
+  fermo non sente il primo messaggio in arrivo, ed e' inevitabile;
+- c'e' un tasto in alto per silenziare; la scelta sta in `localStorage`, che qui
+  e' lecito perche' e' una preferenza del singolo, non un messaggio.
+
+### Pulsanti per chiedere un parere
+
+Oltre a `@claude` scritto nel messaggio, due pulsanti chiedono a Claude un
+parere: sull'ultimo messaggio dell'altra persona, e sugli ultimi tre **scambi**.
+Uno scambio e' tutto quello che una persona scrive di fila prima che risponda
+l'altra: tre messaggi consecutivi della stessa persona sono un solo scambio, e
+le risposte di Claude non contano. Tutte le strade passano da `chiediAClaude()`:
+cambia solo il compito e la fetta di conversazione, mai il modo di chiamare.
 - Testo inserito dalle persone sempre con `textContent`, mai `innerHTML`.
 - L'utente non programma: commenti in italiano, spiegazioni in linguaggio
   naturale, e quando proponi una modifica dì prima **cosa cambia per chi usa la
