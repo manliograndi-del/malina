@@ -364,26 +364,32 @@
   // Le due meta' si ricongiungono e battono quattro volte, poi tornano
   // separate. Solo decorazione: se qualcosa qui non va, la chat funziona.
   var cuoreTimer=null;
-  function animaCuore(){
+  function animaCuore(conSuono){
     if(!cuore) return;
     clearTimeout(cuoreTimer);
     cuore.classList.remove("unito");
     void cuore.offsetWidth;          // fa ripartire l'animazione da capo
     cuore.classList.add("unito");
-    suonaBattito();
+    if(conSuono) suonaBattito();
     cuoreTimer=setTimeout(function(){ cuore.classList.remove("unito"); }, 2700);
   }
 
   // Batte solo per i messaggi scritti dalle persone e appena arrivati: non
   // per la cronologia che si carica all'apertura, ne' per le risposte di Claude.
   function controllaNuovi(items){
-    var batti=false, adesso=Date.now();
+    var batti=false, conSuono=false, adesso=Date.now();
     items.forEach(function(it){
       if(S.visti[it.id]) return;
       S.visti[it.id]=1;
-      if(!S.primoCaricamento && it.kind==="human" && adesso-(it.ts||0) < 120000) batti=true;
+      if(!S.primoCaricamento && it.kind==="human" && adesso-(it.ts||0) < 120000){
+        batti=true;
+        // Il battito si SENTE solo per i messaggi che le due persone si
+        // mandano fra loro: quelli rivolti a Claude fanno muovere il cuore
+        // ma in silenzio. Il cuore e' loro, non della conversazione con lui.
+        if(!wantsClaude(it.text||"")) conSuono=true;
+      }
     });
-    if(batti) animaCuore();
+    if(batti) animaCuore(conSuono);
   }
 
   // ---------- raccolta e ordinamento ----------

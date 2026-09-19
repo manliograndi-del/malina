@@ -293,6 +293,10 @@ esterni. Da sapere:
 - l'uscita passa da un compressore: oltre `1.3/0.85` di forza il battito
   comincia a gracchiare, misurato contando i campioni tagliati;
 
+- **il battito si sente solo per i messaggi che le due persone si mandano fra
+  loro**: quelli che contengono `@claude` fanno muovere il cuore ma in
+  silenzio. Scelta dell'utente, e ha ragione: il cuore e' loro, non della
+  conversazione con Claude;
 - l'array `BATTITI` in JavaScript e i picchi dei keyframes `batti` nel CSS
   descrivono gli stessi istanti: **se si cambia uno, va cambiato l'altro**,
   altrimenti suono e disegno si sfasano;
