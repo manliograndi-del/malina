@@ -325,13 +325,26 @@
 
   // Quattro battiti, ognuno in due tempi (il "tu-tum"), agganciati ai
   // momenti in cui il disegno si gonfia.
-  function suonaBattito(){
-    if(!suonoAcceso || !audio || audio.state!=="running") return;
+  function programmaBattiti(){
     var ora=audio.currentTime;
     BATTITI.forEach(function(t){
       tonfo(ora+t, 0.42);
       tonfo(ora+t+0.17, 0.24);
     });
+  }
+
+  function suonaBattito(){
+    if(!suonoAcceso) return;
+    preparaAudio();
+    if(!audio) return;
+    if(audio.state==="running"){ programmaBattiti(); return; }
+    // Il telefono tiene l'audio sospeso finche' non riconosce un tocco:
+    // provo a svegliarlo e parto appena ci riesce.
+    try{
+      audio.resume().then(function(){
+        if(audio.state==="running") programmaBattiti();
+      }, function(){});
+    }catch(e){}
   }
 
   function aggiornaTastoSuono(){
@@ -342,7 +355,20 @@
     suonoAcceso = !suonoAcceso;
     try{ localStorage.setItem("battito", suonoAcceso ? "acceso" : "muto"); }catch(e){}
     aggiornaTastoSuono();
-    if(suonoAcceso){ preparaAudio(); suonaBattito(); }
+    if(!suonoAcceso) return;
+    // Accendendo il suono si sente subito un battito di prova: cosi' si
+    // capisce se il telefono lo lascia passare.
+    preparaAudio();
+    suonaBattito();
+    setTimeout(function(){
+      if(!audio){
+        showBanner("Questo browser non sa riprodurre il battito.", true);
+      } else if(audio.state!=="running"){
+        showBanner("Il telefono sta tenendo l'audio spento. Controlla il tasto del silenzioso (sull'iPhone la levetta laterale) e alza il volume, poi riprova.", true);
+      } else {
+        banner.hidden=true;
+      }
+    }, 600);
   });
   aggiornaTastoSuono();
   document.addEventListener("pointerdown", preparaAudio, {once:true});
@@ -454,6 +480,14 @@
   }
 
   // ---------- scrittura (una alla volta, solo sul mio documento) ----------
+  // Se una scrittura non risponde piu', dopo venti secondi si prosegue lo
+  // stesso: il messaggio resta fra quelli da confermare e viene risalvato
+  // col messaggio successivo. Senza questo, una scrittura appesa bloccherebbe
+  // per sempre tutte quelle dopo.
+  function conTempoMassimo(promessa, ms){
+    return Promise.race([promessa, new Promise(function(r){ setTimeout(r, ms); })]);
+  }
+
   function persist(item){
     S.pending.push(item);
     render();
@@ -465,7 +499,7 @@
       var seen=Object.create(null); base.forEach(function(x){ seen[x.id]=1; });
       S.pending.forEach(function(x){ if(!seen[x.id]){ seen[x.id]=1; base.push(x); } });
       base.sort(function(a,b){ return (a.ts||0)-(b.ts||0); });
-      return S.db.doc("messages/"+id).set({day:today(), authorId:S.chi, items:base});
+      return conTempoMassimo(S.db.doc("messages/"+id).set({day:today(), authorId:S.chi, items:base}), 20000);
     }).catch(function(e){
       showBanner(e && e.code==="invalid_argument"
         ? "Non hai il permesso di scrivere in questa chat: chiedi l'accesso «può interagire»."
@@ -506,10 +540,22 @@
   // si affida e la fetta di conversazione che gli si mette sotto gli occhi.
   // "compito" puo' essere una funzione, cosi' la frase si compone quando i
   // nomi delle persone sono gia' stati risolti.
+  var attesaMassima=null;
   function chiediAClaude(items, compito){
-    if(!S.sample || S.busy || !items.length) return;
+    if(!S.sample || !items.length) return;
+    if(S.busy){ showBanner("Claude sta gia' rispondendo: aspetta un momento.", false); return; }
     S.busy=true; abilitaComandi(false);
     S.streaming={text:""}; render();
+
+    // Se la risposta non arriva mai (consenso rimasto in sospeso, rete che
+    // cade), dopo un minuto e mezzo la pagina si riprende da sola.
+    clearTimeout(attesaMassima);
+    attesaMassima=setTimeout(function(){
+      if(!S.busy) return;
+      S.busy=false; S.streaming=null; abilitaComandi(true);
+      showBanner("Claude non ha risposto in tempo. Puoi riprovare.", true);
+      render();
+    }, 90000);
 
     // Prima di scrivere il prompt risolvo i nomi di chi compare nella
     // trascrizione: senza questo passaggio, alla prima chiamata della sessione
@@ -552,12 +598,16 @@
       if(m) showBanner(m, true);
       render();
     }).then(function(){
+      clearTimeout(attesaMassima);
       S.busy=false; abilitaComandi(true); input.focus();
     });
   }
 
+  // Mentre Claude sta rispondendo restano spenti solo i pulsanti che
+  // farebbero partire una seconda domanda: scrivere e inviare un messaggio
+  // dev'essere sempre possibile, anche durante l'attesa (che puo' durare
+  // un minuto). Spegnere "Invia" faceva sembrare la pagina bloccata.
   function abilitaComandi(si){
-    send.disabled = !si;
     chipUltimo.disabled = !si || !S.sample;
     chipScambi.disabled = !si || !S.sample;
   }
@@ -690,7 +740,7 @@
         empty.textContent="La chat condivisa non è disponibile in questa vista.";
         return;
       }
-      input.disabled=false; abilitaComandi(true); autosize();
+      input.disabled=false; send.disabled=false; abilitaComandi(true); autosize();
       db.collection("messages").orderBy("day","desc").limit(40).onSnapshot(function(snap){
         S.remote=new Map();
         snap.docs.forEach(function(d){ var v=d.data()||{}; S.remote.set(d.id,{day:v.day,authorId:v.authorId,items:v.items||[]}); });
