@@ -199,10 +199,23 @@ sempre inviata da me, a prescindere da chi la fa»*. Quindi:
   proprietario**: "l'altro" e' la persona che non possiede la chat, chiunque
   prema.
 
-**Quello che non si puo' fare**, e che non va promesso: spostare il *costo*. La
-capability `sample` la paga sempre chi sta guardando la pagina in quel momento,
-con il proprio account. L'intestazione della richiesta e' una cosa, il conto e'
-un'altra.
+**Il costo non si sposta con l'intestazione**: la capability `sample` la paga
+sempre chi sta guardando la pagina in quel momento, con il proprio account.
+L'intestazione della richiesta e' una cosa, il conto e' un'altra.
+
+**Decisione presa (non rimetterla in discussione da soli).** Esiste un modo per
+far pagare davvero al proprietario anche le richieste dell'altra persona: il suo
+pulsante non chiama Claude ma deposita una richiesta in `db`; la pagina del
+proprietario la vede, chiama `sample` con il proprio account e scrive la
+risposta. Funziona, ma le risposte arrivano solo **quando la pagina del
+proprietario e' aperta**. L'utente lo sa, e ha scelto di **non** farlo per ora:
+va bene che l'altra persona usi il proprio account. Da costruire solo se lo
+chiede.
+
+**L'altra persona deve avere un account Claude**: senza, le sue scritture
+vengono rifiutate e la chat sarebbe muta da parte sua. E' gratuito e non e' un
+abbonamento — detto cosi', perche' l'utente temeva di doverle far pagare
+qualcosa.
 
 ## Come si lavora su questo progetto
 
