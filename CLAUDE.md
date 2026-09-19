@@ -139,22 +139,25 @@ Più indietro di così la pagina non carica, quindi Claude non può vederlo.
 
 ## Modello dei dati (non cambiarlo senza motivo)
 
-Un documento **per giorno e per persona**:
+Un documento **per giorno e per autore**:
 
 ```
-messages/2026-09-19__u_abc123__a
+messages/2026-09-19__u_abc123
 {
   day: "2026-09-19",
-  authorId: "u_abc123__a",
+  authorId: "u_abc123",
   items: [
     { id: "...", ts: 1758..., kind: "human" | "claude",
-      authorId: "u_abc123__a", nome: "Manlio", text: "..." }
+      authorId: "u_abc123", text: "..." }
   ]
 }
 ```
 
-L'identita' con cui si scrive e' **l'account piu' la persona scelta**
-(`u_abc123__a`), non il solo account: vedi la sezione qui sotto.
+Piu' un solo documento di servizio, scritto una volta dal proprietario:
+
+```
+config/proprietario   ->   { id: "u_abc123" }
+```
 
 Perché così:
 - ognuno scrive **solo il proprio documento** → due messaggi simultanei non si
@@ -170,42 +173,36 @@ per `ts`.
 
 ## Accesso delle persone
 
-**Scelta dell'utente: le due persone usano lo stesso account Claude** (il suo, Pro:
-vuole essere lui a pagare le risposte di Claude anche quando le chiede l'altra).
-Questo ha una conseguenza che decide il codice: la piattaforma vede un solo
-utente, quindi `user.me()` restituisce lo stesso id a entrambe e
-`user.profiles()` non puo' distinguerle.
+Le due persone hanno **due account Claude distinti** (scelta dell'utente, dopo
+aver valutato e scartato l'account condiviso: chi entra con le credenziali
+altrui vede tutto l'account, non solo questa pagina).
 
-Percio' la pagina fa da sola quello che la piattaforma non puo':
-
-- al primo ingresso chiede **"chi sei?"** (elenco `PERSONE` in cima allo script)
-  e memorizza la scelta in `localStorage` — e' una preferenza del singolo
-  telefono, non un messaggio, quindi e' un uso lecito;
-- l'identita' di scrittura e' `account__persona`, cosi' **ognuna scrive il
-  proprio documento** e la regola "nessuno sovrascrive l'altro" resta valida.
-  Senza questo, con un account solo, i due telefoni riscriverebbero lo stesso
-  documento e i messaggi si cancellerebbero a vicenda, in silenzio;
-- il nome scelto viaggia **dentro il messaggio** (campo `nome`). E' l'unica
-  eccezione ammessa alla regola "mai salvare nomi in `db`", e vale solo perche'
-  con l'account condiviso `profiles()` non puo' risolvere niente: i messaggi che
-  hanno `nome` non passano da `profiles()`, gli altri si'.
-- al posto della foto si mostra l'iniziale del nome: la foto dell'account
-  sarebbe identica per entrambe.
-
-Se un giorno le due persone avranno account distinti, il codice continua a
-funzionare: basta non scegliere nessuna persona e tutto torna a passare da
-`user.me()` e `user.profiles()`.
-
-Restano validi i vincoli di condivisione:
-
-- l'altra persona deve avere l'artifact condiviso con il livello **"può
+- L'altra persona deve avere l'artifact condiviso con il livello **"può
   interagire"** / Editor o superiore. Con "può visualizzare" legge ma le
   scritture vengono rifiutate con `invalid_argument`.
 - Chi arriva da fuori organizzazione conta come sola lettura.
 - Quando una scrittura viene rifiutata, la pagina deve dirlo in chiaro e passare
   in sola lettura, non ritentare.
 
----
+### Le richieste a Claude risultano sempre del proprietario
+
+Richiesta esplicita dell'utente: *«voglio che la richiesta di intervento risulti
+sempre inviata da me, a prescindere da chi la fa»*. Quindi:
+
+- il proprietario scrive il proprio id in `config/proprietario` la prima volta
+  che apre la pagina (`me.isOwner`); gli altri lo leggono all'avvio;
+- nel prompt c'e' sempre la riga "chi ti chiede di intervenire e' <proprietario>,
+  anche quando a premere il pulsante e' stata l'altra persona", e Claude rivolge
+  a lui la risposta;
+- sotto al nome di Claude, nella bolla, si legge "su richiesta di <proprietario>";
+- il pulsante "sull'ultimo messaggio" guarda **sempre dal punto di vista del
+  proprietario**: "l'altro" e' la persona che non possiede la chat, chiunque
+  prema.
+
+**Quello che non si puo' fare**, e che non va promesso: spostare il *costo*. La
+capability `sample` la paga sempre chi sta guardando la pagina in quel momento,
+con il proprio account. L'intestazione della richiesta e' una cosa, il conto e'
+un'altra.
 
 ## Come si lavora su questo progetto
 
@@ -241,6 +238,10 @@ Restano validi i vincoli di condivisione:
   cronologia che si carica all'apertura, non per le risposte di Claude). E'
   decorazione inerte: sta sotto a tutto con `pointer-events:none` e non deve
   mai poter rompere la chat.
+- La pagina non si blocca mai mentre Claude risponde: durante l'attesa (5-60
+  secondi) restano spenti solo i pulsanti che farebbero partire una seconda
+  domanda, mai "Invia". Spegnere "Invia" era un difetto vero, segnalato
+  dall'utente come "l'interfaccia si blocca".
 - Le bolle dei messaggi sono semitrasparenti perche' il cuore si veda anche
   sotto ai messaggi. **Toccando quelle trasparenze va rimisurato il contrasto
   del testo**: il bianco sulla bolla blu e' il punto fragile (con il primo

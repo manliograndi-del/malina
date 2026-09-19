@@ -92,28 +92,8 @@
     font-size:16px; line-height:1; opacity:.75;
   }
 
-  /* chi sei? schermata iniziale quando l'account e' lo stesso per due */
-  .velo{
-    position:fixed; inset:0; z-index:3; display:flex; align-items:center;
-    justify-content:center; padding:24px; background:rgba(30,28,26,.45);
-  }
-  .velo[hidden]{display:none}
-  .scelta{
-    background:var(--panel); border:1px solid var(--line); border-radius:18px;
-    padding:20px; max-width:340px; width:100%;
-  }
-  .scelta h2{margin:0 0 8px; font-size:17px}
-  .scelta p{margin:0 0 16px; font-size:14px; color:var(--ink-soft)}
-  .scelta-bottoni{display:flex; gap:10px; flex-wrap:wrap}
-  .scelta-bottoni button{flex:1 1 120px; font-weight:600}
-  /* pallino con l'iniziale, al posto della foto: con un account solo la foto
-     sarebbe identica per entrambi e non direbbe niente */
-  .av.ini{
-    display:flex; align-items:center; justify-content:center;
-    font-size:13px; font-weight:600; background:#dfe3ea; color:#41464f;
-  }
-  .av.ini.b{background:#f7d7d4; color:#8d3a34}
-  #who{cursor:pointer}
+  /* riga sotto al nome di Claude: da chi risulta la richiesta */
+  .perconto{font-weight:400; color:var(--ink-soft)}
 
   /* ---------- cuore di sfondo ---------- */
   /* Sta dietro a tutto e non intercetta tocchi: e' solo decorazione. */
@@ -165,15 +145,6 @@
   <button id="suono" type="button" title="Suono del battito">&#128266;</button>
 </header>
 
-<div id="chi" class="velo" hidden>
-  <div class="scelta">
-    <h2>Chi sei?</h2>
-    <p>Questa chat &egrave; di due persone che usano lo stesso account. Dimmi chi sei:
-       resta memorizzato su questo telefono, e lo puoi cambiare toccando il tuo nome in alto.</p>
-    <div class="scelta-bottoni" id="scelta-bottoni"></div>
-  </div>
-</div>
-
 <div id="banner" class="banner" hidden></div>
 <div id="log"><p class="empty" id="empty">Caricamento…</p></div>
 
@@ -194,17 +165,10 @@
 (function(){
   "use strict";
 
-  // Le due persone della chat. Usano lo stesso account Claude, quindi la
-  // piattaforma non puo' distinguerle: e' la pagina a chiedere chi sei, e la
-  // risposta resta su quel telefono. Per cambiare i nomi si cambia qui.
-  var PERSONE = [
-    {id:"a", nome:"Manlio"},
-    {id:"b", nome:"Lina"}
-  ];
-
   var S = {
     db:null, user:null, sample:null,
-    uid:null, myName:"", persona:null, chi:null,
+    uid:null, myName:"",
+    proprietario:null,     // id di chi possiede la chat: a lui risultano le richieste a Claude
     remote:new Map(),      // docId -> {day, authorId, items}
     pending:[],            // miei item non ancora confermati dallo snapshot
     profiles:{},
@@ -223,8 +187,7 @@
       tastoSuono=document.getElementById("suono"),
       chipUltimo=document.getElementById("chip-ultimo"),
       chipScambi=document.getElementById("chip-scambi"),
-      velo=document.getElementById("chi"),
-      sceltaBottoni=document.getElementById("scelta-bottoni");
+      nientaltro=null;
 
   function today(){ return new Date().toISOString().slice(0,10); }
   function uid(){ return Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8); }
@@ -232,44 +195,15 @@
   function esc(t){ var n=document.createElement("div"); n.textContent=t; return n; }
   function showBanner(msg, bad){ banner.hidden=false; banner.textContent=msg; banner.classList.toggle("err", !!bad); }
 
-  // ---------- chi sei ----------
-  // L'identita' con cui si scrive e' l'account PIU' la persona scelta:
-  // cosi' i due foglietti restano separati e nessuno sovrascrive l'altro.
-  function aggiornaIdentita(){
-    S.chi = S.uid ? (S.persona ? S.uid+"__"+S.persona.id : S.uid) : null;
-    who.textContent = S.persona ? "Sei "+S.persona.nome : (S.myName ? "Sei "+S.myName : "");
-    who.title = "Tocca per cambiare persona";
+  // ---------- chi possiede la chat ----------
+  // Le richieste a Claude risultano sempre inviate da chi possiede la chat,
+  // anche quando e' l'altra persona a premere il pulsante: e' una scelta
+  // dell'utente. Serve saperne l'id da qualunque telefono, quindi il
+  // proprietario lo scrive una volta sola nell'archivio.
+  function nomeProprietario(){
+    if(!S.proprietario) return "";
+    return (S.profiles[S.proprietario]||{}).name || "";
   }
-
-  function leggiPersona(){
-    try{
-      var v=localStorage.getItem("chiSono");
-      for(var i=0;i<PERSONE.length;i++) if(PERSONE[i].id===v) return PERSONE[i];
-    }catch(e){}
-    return null;
-  }
-
-  function scegliPersona(p){
-    S.persona=p;
-    try{ localStorage.setItem("chiSono", p.id); }catch(e){}
-    velo.hidden=true;
-    aggiornaIdentita();
-    render();
-    input.focus();
-  }
-
-  function mostraScelta(){
-    sceltaBottoni.textContent="";
-    PERSONE.forEach(function(p){
-      var b=document.createElement("button");
-      b.type="button"; b.className="primary"; b.textContent=p.nome;
-      b.addEventListener("click", function(){ preparaAudio(); scegliPersona(p); });
-      sceltaBottoni.appendChild(b);
-    });
-    velo.hidden=false;
-  }
-
-  who.addEventListener("click", mostraScelta);
 
   // ---------- suono del battito ----------
   // Il suono e' generato dalla pagina (niente file da scaricare, che il
@@ -417,11 +351,10 @@
   function render(){
     var items=allItems(), token=++renderToken;
     controllaNuovi(items);
-    // Solo i messaggi senza nome scritto dentro vanno risolti con profiles():
-    // quelli con la persona scelta il nome ce l'hanno gia'.
     var ids=[]; items.forEach(function(it){
-      if(!it.nome && it.authorId && ids.indexOf(it.authorId)<0) ids.push(it.authorId);
+      if(it.authorId && ids.indexOf(it.authorId)<0) ids.push(it.authorId);
     });
+    if(S.proprietario && ids.indexOf(S.proprietario)<0) ids.push(S.proprietario);
 
     var draw=function(){
       if(token!==renderToken) return;
@@ -444,19 +377,12 @@
 
   function bubble(it){
     var isClaude = it.kind==="claude";
-    var mine = !isClaude && it.authorId===S.chi;
+    var mine = !isClaude && it.authorId===S.uid;
     var row=document.createElement("div");
     row.className="row"+(mine?" me":"")+(isClaude?" claude":"");
 
     if(isClaude){
       var mark=document.createElement("div"); mark.className="av cl"; mark.textContent="✦"; row.appendChild(mark);
-    } else if(it.nome){
-      // Con un account solo la foto sarebbe la stessa per entrambi: meglio
-      // l'iniziale del nome, che almeno distingue.
-      var cer=document.createElement("div");
-      cer.className="av ini"+(/__b$/.test(it.authorId||"") ? " b" : "");
-      cer.textContent=it.nome.slice(0,1).toUpperCase();
-      row.appendChild(cer);
     } else {
       var p=S.profiles[it.authorId];
       var img=document.createElement("img"); img.className="av"; img.alt="";
@@ -466,7 +392,15 @@
 
     var b=document.createElement("div"); b.className="bubble";
     var nm=document.createElement("span"); nm.className="name";
-    nm.textContent = isClaude ? "Claude" : (it.nome || (S.profiles[it.authorId]||{}).name || "Qualcuno");
+    nm.textContent = isClaude ? "Claude" : ((S.profiles[it.authorId]||{}).name || "Qualcuno");
+    // Sotto al nome di Claude si legge da chi risulta la richiesta: e' sempre
+    // chi possiede la chat, anche quando il pulsante l'ha premuto l'altra persona.
+    if(isClaude && nomeProprietario()){
+      var pc=document.createElement("span");
+      pc.className="perconto";
+      pc.textContent=" \u00b7 su richiesta di "+nomeProprietario();
+      nm.appendChild(pc);
+    }
     b.appendChild(nm);
 
     var tx=document.createElement("div"); tx.className="txt";
@@ -492,14 +426,14 @@
     S.pending.push(item);
     render();
     S.queue = S.queue.then(function(){
-      if(!S.db || !S.chi) return;
-      var id = today()+"__"+S.chi;
+      if(!S.db || !S.uid) return;
+      var id = today()+"__"+S.uid;
       var doc = S.remote.get(id);
       var base = doc && doc.items ? doc.items.slice() : [];
       var seen=Object.create(null); base.forEach(function(x){ seen[x.id]=1; });
       S.pending.forEach(function(x){ if(!seen[x.id]){ seen[x.id]=1; base.push(x); } });
       base.sort(function(a,b){ return (a.ts||0)-(b.ts||0); });
-      return conTempoMassimo(S.db.doc("messages/"+id).set({day:today(), authorId:S.chi, items:base}), 20000);
+      return conTempoMassimo(S.db.doc("messages/"+id).set({day:today(), authorId:S.uid, items:base}), 20000);
     }).catch(function(e){
       showBanner(e && e.code==="invalid_argument"
         ? "Non hai il permesso di scrivere in questa chat: chiedi l'accesso «può interagire»."
@@ -520,7 +454,7 @@
 
   function transcript(items){
     var righe = items.map(function(it){
-      var nm = it.kind==="claude" ? "Claude" : (it.nome || (S.profiles[it.authorId]||{}).name || "Partecipante");
+      var nm = it.kind==="claude" ? "Claude" : ((S.profiles[it.authorId]||{}).name || "Partecipante");
       var d = new Date(it.ts);
       var giorno = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
       return "["+giorno+" "+hhmm(it.ts)+"] "+nm+": "+(it.text||"");
@@ -561,18 +495,26 @@
     // trascrizione: senza questo passaggio, alla prima chiamata della sessione
     // Claude leggerebbe "Partecipante" per tutti e non distinguerebbe chi parla.
     var ids=[];
-    items.forEach(function(it){
-      if(!it.nome && it.authorId && ids.indexOf(it.authorId)<0) ids.push(it.authorId);
-    });
+    items.forEach(function(it){ if(it.authorId && ids.indexOf(it.authorId)<0) ids.push(it.authorId); });
+    if(S.proprietario && ids.indexOf(S.proprietario)<0) ids.push(S.proprietario);
     var nomiPronti = (ids.length && S.user && S.user.profiles)
       ? Promise.resolve(S.user.profiles(ids)).then(function(ps){ if(ps) S.profiles=ps; }, function(){})
       : Promise.resolve();
 
     nomiPronti.then(function(){
+      // Chi ha materialmente premuto il pulsante non conta: la richiesta
+      // risulta sempre di chi possiede la chat, ed e' a lui che Claude parla.
+      var perConto = nomeProprietario()
+        ? "Chi ti chiede di intervenire e' sempre "+nomeProprietario()+", "+
+          "anche quando a premere il pulsante e' stata l'altra persona: "+
+          "e' la sua curiosita'. Rivolgi la risposta a lui.\n"
+        : "";
+
       var prompt =
         "Sei il terzo partecipante di una chat privata fra due persone.\n"+
         "Qui sotto c'e' la conversazione recente, in ordine di tempo, con data e ora di ogni messaggio.\n"+
         "Oggi e' "+today()+". La conversazione puo' essere iniziata giorni fa: tienine conto.\n"+
+        perConto+
         (typeof compito==="function" ? compito() : compito)+"\n\n"+
         "--- TRASCRIZIONE ---\n"+transcript(items)+"\n--- FINE ---\n\n"+
         "Rispondi in italiano, dando del tu, come un terzo partecipante: breve (2-6 frasi), "+
@@ -585,11 +527,11 @@
       });
     }).then(function(res){
       S.streaming=null;
-      persist({id:uid(), ts:Date.now(), kind:"claude", authorId:S.chi, text:(res.text||"").trim()});
+      persist({id:uid(), ts:Date.now(), kind:"claude", authorId:S.uid, text:(res.text||"").trim()});
     }).catch(function(e){
       var keep = e && e.text ? e.text.trim() : "";
       S.streaming=null;
-      if(keep) persist({id:uid(), ts:Date.now(), kind:"claude", authorId:S.chi, text:keep+"\n\n[risposta interrotta]"});
+      if(keep) persist({id:uid(), ts:Date.now(), kind:"claude", authorId:S.uid, text:keep+"\n\n[risposta interrotta]"});
       var m = {
         not_granted:"Hai rifiutato l'uso di Claude in questa pagina. Ricarica per riprovare.",
         rate_limited:"Troppe richieste ravvicinate: aspetta un momento.",
@@ -634,15 +576,19 @@
     return out;
   }
 
+  // "L'altro" e' l'altra persona rispetto a chi possiede la chat: la domanda
+  // risulta sempre sua, quindi il punto di vista e' sempre il suo, anche se a
+  // premere il pulsante e' stata l'altra.
   function ultimoDellAltro(items){
+    var riferimento = S.proprietario || S.uid;
     for(var i=items.length-1;i>=0;i--){
-      if(items[i].kind==="human" && items[i].authorId!==S.chi) return items[i];
+      if(items[i].kind==="human" && items[i].authorId!==riferimento) return items[i];
     }
     return null;
   }
 
   function nomeDi(msg){
-    return msg.nome || (S.profiles[msg.authorId]||{}).name || "l'altra persona";
+    return (S.profiles[msg.authorId]||{}).name || "l'altra persona";
   }
 
   function chiediUltimoMessaggio(){
@@ -653,7 +599,7 @@
     }
     // Gli do il contesto recente, ma gli chiedo di commentare quel messaggio li'.
     chiediAClaude(ultimi(tutti), function(){
-      return "Nessuno ti ha chiamato con @claude: ti e' stato chiesto con un pulsante "+
+      return "Ti e' stato chiesto con un pulsante "+
              "che cosa pensi dell'ultimo messaggio scritto da "+nomeDi(msg)+", "+
              "quello delle "+hhmm(msg.ts)+" che dice: \u00ab"+(msg.text||"")+"\u00bb.\n"+
              "Commenta quel messaggio: come lo leggi, che cosa ne pensi, e se puo' servire "+
@@ -673,7 +619,7 @@
     if(finestra.length > MEMORIA_MSG) finestra = finestra.slice(-MEMORIA_MSG);
     chiediAClaude(finestra, function(){
       var quanti = ultimiTre.length;
-      return "Nessuno ti ha chiamato con @claude: ti e' stato chiesto con un pulsante "+
+      return "Ti e' stato chiesto con un pulsante "+
              "che cosa pensi degli ultimi "+quanti+" scambi della conversazione"+
              (quanti<3 ? " (sono tutti quelli che ci sono finora)" : "")+".\n"+
              "Uno scambio e' tutto quello che una persona ha scritto di fila prima che "+
@@ -691,13 +637,10 @@
   function submit(){
     var text=input.value.trim();
     if(!text || !S.db || !S.uid) return;
-    if(!S.persona){ mostraScelta(); return; }
     preparaAudio();
     input.value=""; autosize();
     var call = wantsClaude(text);
-    // Il nome viaggia dentro il messaggio: con un account condiviso la
-    // piattaforma non saprebbe dire chi dei due ha scritto.
-    persist({id:uid(), ts:Date.now(), kind:"human", authorId:S.chi, nome:S.persona.nome, text:text});
+    persist({id:uid(), ts:Date.now(), kind:"human", authorId:S.uid, text:text});
     if(call){
       if(S.sample) askClaude();
       else showBanner("Claude non è disponibile in questa vista, il messaggio resta comunque nella chat.", false);
@@ -728,10 +671,12 @@
       if(!u) return null;
       return u.me();
     }).then(function(me){
-      if(me){ S.uid=me.id; S.myName=me.name||""; }
-      S.persona = leggiPersona();
-      aggiornaIdentita();
-      if(S.uid && !S.persona) mostraScelta();
+      if(me){
+        S.uid=me.id; S.myName=me.name||"";
+        S.sonoProprietario = !!me.isOwner ||
+          (S.user && typeof S.user.isOwner==="function" && S.user.isOwner()===true);
+        who.textContent = S.myName ? "Sei "+S.myName : "";
+      }
       if(!S.uid) showBanner("Non riesco a identificarti su questa pagina: accedi con il tuo account per scrivere.", true);
       return window.claude.use("db");
     }).then(function(db){
@@ -741,6 +686,17 @@
         return;
       }
       input.disabled=false; send.disabled=false; abilitaComandi(true); autosize();
+
+      // Chi possiede la chat lascia scritto il proprio id, una volta sola:
+      // cosi' anche l'altro telefono sa a chi intestare le richieste a Claude.
+      db.doc("config/proprietario").get().then(function(d){
+        var v = d && d.exists ? (d.data()||{}) : {};
+        if(v.id){ S.proprietario=v.id; render(); }
+        else if(S.sonoProprietario && S.uid){
+          S.proprietario=S.uid;
+          return db.doc("config/proprietario").set({id:S.uid});
+        }
+      }).catch(function(){});
       db.collection("messages").orderBy("day","desc").limit(40).onSnapshot(function(snap){
         S.remote=new Map();
         snap.docs.forEach(function(d){ var v=d.data()||{}; S.remote.set(d.id,{day:v.day,authorId:v.authorId,items:v.items||[]}); });
