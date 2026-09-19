@@ -15,6 +15,12 @@
     --line:#e3e0da; --mine:#1f6feb; --mine-ink:#ffffff;
     --claude-bg:#f3ecdf; --claude-line:#d9c9a8; --danger:#a13d2d;
     --cuore:#d2635f;
+    /* Bolle semitrasparenti: il cuore si vede attraverso i messaggi.
+       Il blu e' un po' piu' scuro dell'originale perche' con la
+       trasparenza il testo bianco sopra resti leggibile. */
+    --bolla:rgba(255,255,255,.62);
+    --bolla-mia:rgba(17,78,184,.84);
+    --bolla-claude:rgba(243,236,223,.6);
     --radius:16px;
   }
   *,*::before,*::after{box-sizing:inherit}
@@ -38,14 +44,15 @@
   .av.cl{display:flex;align-items:center;justify-content:center;font-size:14px;background:var(--claude-bg);border:1px solid var(--claude-line)}
   .bubble{
     max-width:min(78%,560px); padding:9px 13px; border-radius:var(--radius);
-    background:var(--panel); border:1px solid var(--line); overflow-wrap:anywhere;
+    background:var(--bolla); border:1px solid var(--line); overflow-wrap:anywhere;
   }
-  .row.me .bubble{background:var(--mine); color:var(--mine-ink); border-color:transparent}
-  .row.claude .bubble{background:var(--claude-bg); border-color:var(--claude-line)}
+  .row.me .bubble{background:var(--bolla-mia); color:var(--mine-ink); border-color:transparent}
+  .row.claude .bubble{background:var(--bolla-claude); border-color:var(--claude-line)}
   .name{display:block; font-size:12px; color:var(--ink-soft); margin-bottom:2px; font-weight:600}
   .row.me .name{display:none}
   .txt{white-space:pre-wrap}
   .time{display:block; font-size:11px; opacity:.6; margin-top:3px}
+  .row.me .time{opacity:.85}
   .thinking{font-style:italic; color:var(--ink-soft)}
   footer{
     flex:0 0 auto; border-top:1px solid var(--line); background:var(--panel);
