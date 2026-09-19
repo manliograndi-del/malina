@@ -3,9 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
 <title>Chat — io, Lina e Claude</title>
 <style>
   :root{
+    color-scheme:light;   /* niente tema scuro: la chat resta chiara anche di notte */
     box-sizing:border-box;
     padding-top:env(safe-area-inset-top,0px);
     padding-bottom:env(safe-area-inset-bottom,0px);
@@ -14,20 +16,6 @@
     --claude-bg:#f3ecdf; --claude-line:#d9c9a8; --danger:#a13d2d;
     --cuore:#d2635f;
     --radius:16px;
-  }
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --bg:#17181a; --panel:#1f2124; --ink:#ececec; --ink-soft:#9a9a97;
-      --line:#32353a; --mine:#2f6ddb; --mine-ink:#ffffff;
-      --claude-bg:#2a2620; --claude-line:#4a4133; --danger:#e08a78;
-      --cuore:#c2615e;
-    }
-  }
-  :root[data-theme="dark"]{
-    --bg:#17181a; --panel:#1f2124; --ink:#ececec; --ink-soft:#9a9a97;
-    --line:#32353a; --mine:#2f6ddb; --mine-ink:#ffffff;
-    --claude-bg:#2a2620; --claude-line:#4a4133; --danger:#e08a78;
-    --cuore:#c2615e;
   }
   *,*::before,*::after{box-sizing:inherit}
   html,body{height:100%}

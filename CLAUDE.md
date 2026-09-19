@@ -197,8 +197,18 @@ per `ts`.
 
 - JavaScript classico, nessun framework, nessuna dipendenza.
 - Tutto in un file: HTML, CSS e JS inline.
-- CSS con variabili su `:root`, tema chiaro e scuro, `env(safe-area-inset-*)`
-  per i bordi dello schermo del telefono, `height: 100%` (mai `100vh`).
+- CSS con variabili su `:root`, `env(safe-area-inset-*)` per i bordi dello
+  schermo del telefono, `height: 100%` (mai `100vh`).
+- **Tema unico chiaro, per scelta dell'utente**: niente blocco
+  `prefers-color-scheme: dark`. La pagina lo dichiara con `color-scheme: light`
+  (nel CSS e nel `<meta>`), altrimenti di notte il telefono scurirebbe da solo
+  la casella di scrittura e la barra di scorrimento.
+- Sullo sfondo c'e' un cuore spezzato in SVG inline: le due meta' condividono
+  la stessa linea di frattura, per questo combaciano quando si ricompongono.
+  Batte a ogni messaggio scritto da una persona (non per la cronologia che si
+  carica all'apertura, non per le risposte di Claude). E' decorazione inerte:
+  sta sotto a tutto con `pointer-events:none` e non deve mai poter rompere la
+  chat.
 - Testo inserito dalle persone sempre con `textContent`, mai `innerHTML`.
 - L'utente non programma: commenti in italiano, spiegazioni in linguaggio
   naturale, e quando proponi una modifica dì prima **cosa cambia per chi usa la
