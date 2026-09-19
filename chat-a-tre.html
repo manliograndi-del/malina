@@ -73,9 +73,11 @@
   .hint{font-size:12px; color:var(--ink-soft); margin:7px 2px 0}
   .hint b{font-weight:600; color:var(--ink)}
   .err{color:var(--danger)}
+  /* Avvisi e rifiuti stanno in fondo, sopra ai pulsanti: e' li' che si
+     guarda quando si preme, e in cima allo schermo non si vedevano. */
   .banner{
-    margin:10px 12px; padding:10px 12px; border:1px solid var(--line);
-    border-radius:12px; background:var(--panel); font-size:14px; color:var(--ink-soft);
+    margin:0 0 8px; padding:10px 12px; border:1px solid var(--line);
+    border-radius:12px; background:var(--bg); font-size:14px; color:var(--ink-soft);
   }
 
   /* scorciatoie per chiedere un parere a Claude */
@@ -145,10 +147,10 @@
   <button id="suono" type="button" title="Suono del battito">&#128266;</button>
 </header>
 
-<div id="banner" class="banner" hidden></div>
 <div id="log"><p class="empty" id="empty">Caricamento…</p></div>
 
 <footer>
+  <div id="banner" class="banner" hidden></div>
   <div class="scorciatoie">
     <button class="chip" id="chip-ultimo" type="button" disabled>&#10022; Sull'ultimo messaggio</button>
     <button class="chip" id="chip-scambi" type="button" disabled>&#10022; Sugli ultimi 3 scambi</button>
@@ -194,6 +196,7 @@
   function hhmm(ts){ var d=new Date(ts); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
   function esc(t){ var n=document.createElement("div"); n.textContent=t; return n; }
   function showBanner(msg, bad){ banner.hidden=false; banner.textContent=msg; banner.classList.toggle("err", !!bad); }
+  function puliscBanner(){ banner.hidden=true; banner.textContent=""; }
 
   // ---------- chi possiede la chat ----------
   // Le richieste a Claude risultano sempre inviate da chi possiede la chat,
@@ -594,7 +597,7 @@
   function chiediUltimoMessaggio(){
     var tutti=allItems(), msg=ultimoDellAltro(tutti);
     if(!msg){
-      showBanner("L'altra persona non ha ancora scritto niente: non c'e' un messaggio su cui dire la sua.", false);
+      showBanner("Ancora nessun messaggio dell'altra persona da commentare: appena scrive, questo pulsante funziona.", false);
       return;
     }
     // Gli do il contesto recente, ma gli chiedo di commentare quel messaggio li'.
@@ -610,7 +613,7 @@
   function chiediUltimiScambi(){
     var tutti=allItems(), tutti_scambi=scambi(tutti);
     if(!tutti_scambi.length){
-      showBanner("Non c'e' ancora conversazione su cui dire la sua.", false);
+      showBanner("La chat e' ancora vuota: scrivete qualcosa e poi riprova.", false);
       return;
     }
     var ultimiTre = tutti_scambi.slice(-3);
@@ -630,13 +633,14 @@
     });
   }
 
-  chipUltimo.addEventListener("click", function(){ preparaAudio(); chiediUltimoMessaggio(); });
-  chipScambi.addEventListener("click", function(){ preparaAudio(); chiediUltimiScambi(); });
+  chipUltimo.addEventListener("click", function(){ puliscBanner(); preparaAudio(); chiediUltimoMessaggio(); });
+  chipScambi.addEventListener("click", function(){ puliscBanner(); preparaAudio(); chiediUltimiScambi(); });
 
   // ---------- invio ----------
   function submit(){
     var text=input.value.trim();
     if(!text || !S.db || !S.uid) return;
+    puliscBanner();
     preparaAudio();
     input.value=""; autosize();
     var call = wantsClaude(text);
