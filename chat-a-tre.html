@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chat</title>
+<style>
+  :root{
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    --bg:#f7f6f3; --panel:#ffffff; --ink:#1d1c1a; --ink-soft:#6b6863;
+    --line:#e3e0da; --mine:#1f6feb; --mine-ink:#ffffff;
+    --claude-bg:#f3ecdf; --claude-line:#d9c9a8; --danger:#a13d2d;
+    --radius:16px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#17181a; --panel:#1f2124; --ink:#ececec; --ink-soft:#9a9a97;
+      --line:#32353a; --mine:#2f6ddb; --mine-ink:#ffffff;
+      --claude-bg:#2a2620; --claude-line:#4a4133; --danger:#e08a78;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#17181a; --panel:#1f2124; --ink:#ececec; --ink-soft:#9a9a97;
+    --line:#32353a; --mine:#2f6ddb; --mine-ink:#ffffff;
+    --claude-bg:#2a2620; --claude-line:#4a4133; --danger:#e08a78;
+  }
+  *,*::before,*::after{box-sizing:inherit}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-size:16px; line-height:1.45; display:flex; flex-direction:column;
+  }
+  header{
+    padding:12px 16px; border-bottom:1px solid var(--line);
+    background:var(--panel); display:flex; align-items:baseline; gap:10px; flex:0 0 auto;
+  }
+  header h1{font-size:16px; margin:0; font-weight:600; letter-spacing:.01em}
+  header .who{font-size:13px; color:var(--ink-soft); margin-left:auto}
+  #log{flex:1 1 auto; overflow-y:auto; padding:16px 12px 8px; -webkit-overflow-scrolling:touch}
+  .empty{color:var(--ink-soft); font-size:14px; text-align:center; margin-top:32px; padding:0 24px}
+  .row{display:flex; gap:8px; margin-bottom:14px; align-items:flex-end}
+  .row.me{flex-direction:row-reverse}
+  .av{width:28px;height:28px;border-radius:50%;flex:0 0 auto;object-fit:cover;background:var(--line)}
+  .av.cl{display:flex;align-items:center;justify-content:center;font-size:14px;background:var(--claude-bg);border:1px solid var(--claude-line)}
+  .bubble{
+    max-width:min(78%,560px); padding:9px 13px; border-radius:var(--radius);
+    background:var(--panel); border:1px solid var(--line); overflow-wrap:anywhere;
+  }
+  .row.me .bubble{background:var(--mine); color:var(--mine-ink); border-color:transparent}
+  .row.claude .bubble{background:var(--claude-bg); border-color:var(--claude-line)}
+  .name{display:block; font-size:12px; color:var(--ink-soft); margin-bottom:2px; font-weight:600}
+  .row.me .name{display:none}
+  .txt{white-space:pre-wrap}
+  .time{display:block; font-size:11px; opacity:.6; margin-top:3px}
+  .thinking{font-style:italic; color:var(--ink-soft)}
+  footer{
+    flex:0 0 auto; border-top:1px solid var(--line); background:var(--panel);
+    padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
+  }
+  .bar{display:flex; gap:8px; align-items:flex-end}
+  textarea{
+    flex:1 1 auto; resize:none; font:inherit; color:inherit; background:var(--bg);
+    border:1px solid var(--line); border-radius:12px; padding:9px 11px; max-height:120px; min-height:42px;
+  }
+  textarea:focus{outline:2px solid var(--mine); outline-offset:-1px}
+  button{
+    font:inherit; border-radius:12px; border:1px solid var(--line); background:var(--bg);
+    color:var(--ink); padding:9px 13px; min-height:42px; cursor:pointer;
+  }
+  button.primary{background:var(--mine); color:var(--mine-ink); border-color:transparent; font-weight:600}
+  button:disabled{opacity:.45; cursor:default}
+  .hint{font-size:12px; color:var(--ink-soft); margin:7px 2px 0}
+  .hint b{font-weight:600; color:var(--ink)}
+  .err{color:var(--danger)}
+  .banner{
+    margin:10px 12px; padding:10px 12px; border:1px solid var(--line);
+    border-radius:12px; background:var(--panel); font-size:14px; color:var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Chat</h1>
+  <span class="who" id="who"></span>
+</header>
+
+<div id="banner" class="banner" hidden></div>
+<div id="log"><p class="empty" id="empty">Caricamento…</p></div>
+
+<footer>
+  <div class="bar">
+    <button id="mention" type="button" title="Chiama Claude">✦</button>
+    <textarea id="input" rows="1" placeholder="Scrivi un messaggio…" disabled></textarea>
+    <button id="send" class="primary" type="button" disabled>Invia</button>
+  </div>
+  <p class="hint" id="hint">Scrivi <b>@claude</b> nel messaggio per farlo intervenire.</p>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  var S = {
+    db:null, user:null, sample:null,
+    uid:null, myName:"",
+    remote:new Map(),      // docId -> {day, authorId, items}
+    pending:[],            // miei item non ancora confermati dallo snapshot
+    profiles:{},
+    streaming:null,        // {text}
+    busy:false,
+    queue:Promise.resolve()
+  };
+
+  var log=document.getElementById("log"), empty=document.getElementById("empty"),
+      input=document.getElementById("input"), send=document.getElementById("send"),
+      mention=document.getElementById("mention"), hint=document.getElementById("hint"),
+      who=document.getElementById("who"), banner=document.getElementById("banner");
+
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function uid(){ return Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8); }
+  function hhmm(ts){ var d=new Date(ts); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+  function esc(t){ var n=document.createElement("div"); n.textContent=t; return n; }
+  function showBanner(msg, bad){ banner.hidden=false; banner.textContent=msg; banner.classList.toggle("err", !!bad); }
+
+  // ---------- raccolta e ordinamento ----------
+  function allItems(){
+    var out=[], seen=Object.create(null);
+    S.remote.forEach(function(doc){
+      (doc.items||[]).forEach(function(it){
+        if(it && it.id && !seen[it.id]){ seen[it.id]=1; out.push(it); }
+      });
+    });
+    S.pending.forEach(function(it){ if(!seen[it.id]){ seen[it.id]=1; out.push(it); } });
+    out.sort(function(a,b){ return (a.ts||0)-(b.ts||0); });
+    return out;
+  }
+
+  // ---------- render ----------
+  var renderToken=0;
+  function render(){
+    var items=allItems(), token=++renderToken;
+    var ids=[]; items.forEach(function(it){ if(it.authorId && ids.indexOf(it.authorId)<0) ids.push(it.authorId); });
+
+    var draw=function(){
+      if(token!==renderToken) return;
+      var atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+      log.textContent="";
+      if(!items.length && !S.streaming){
+        var p=document.createElement("p"); p.className="empty";
+        p.textContent="Nessun messaggio. Scrivi qualcosa: la conversazione resta qui.";
+        log.appendChild(p);
+      }
+      items.forEach(function(it){ log.appendChild(bubble(it)); });
+      if(S.streaming) log.appendChild(bubble({kind:"claude", text:S.streaming.text||"", ts:Date.now(), live:true}));
+      if(atBottom || S.streaming) log.scrollTop = log.scrollHeight;
+    };
+
+    if(ids.length && S.user && S.user.profiles){
+      S.user.profiles(ids).then(function(ps){ S.profiles=ps||{}; draw(); });
+    } else draw();
+  }
+
+  function bubble(it){
+    var isClaude = it.kind==="claude";
+    var mine = !isClaude && it.authorId===S.uid;
+    var row=document.createElement("div");
+    row.className="row"+(mine?" me":"")+(isClaude?" claude":"");
+
+    if(isClaude){
+      var mark=document.createElement("div"); mark.className="av cl"; mark.textContent="✦"; row.appendChild(mark);
+    } else {
+      var p=S.profiles[it.authorId];
+      var img=document.createElement("img"); img.className="av"; img.alt="";
+      if(p && p.avatarUrl) img.src=p.avatarUrl;
+      row.appendChild(img);
+    }
+
+    var b=document.createElement("div"); b.className="bubble";
+    var nm=document.createElement("span"); nm.className="name";
+    nm.textContent = isClaude ? "Claude" : ((S.profiles[it.authorId]||{}).name || "Qualcuno");
+    b.appendChild(nm);
+
+    var tx=document.createElement("div"); tx.className="txt";
+    if(it.live && !it.text){ tx.className="txt thinking"; tx.textContent="Sto pensando…"; }
+    else tx.textContent=it.text||"";
+    b.appendChild(tx);
+
+    if(!it.live){ var t=document.createElement("span"); t.className="time"; t.textContent=hhmm(it.ts); b.appendChild(t); }
+    row.appendChild(b);
+    return row;
+  }
+
+  // ---------- scrittura (una alla volta, solo sul mio documento) ----------
+  function persist(item){
+    S.pending.push(item);
+    render();
+    S.queue = S.queue.then(function(){
+      if(!S.db || !S.uid) return;
+      var id = today()+"__"+S.uid;
+      var doc = S.remote.get(id);
+      var base = doc && doc.items ? doc.items.slice() : [];
+      var seen=Object.create(null); base.forEach(function(x){ seen[x.id]=1; });
+      S.pending.forEach(function(x){ if(!seen[x.id]){ seen[x.id]=1; base.push(x); } });
+      base.sort(function(a,b){ return (a.ts||0)-(b.ts||0); });
+      return S.db.doc("messages/"+id).set({day:today(), authorId:S.uid, items:base});
+    }).catch(function(e){
+      showBanner(e && e.code==="invalid_argument"
+        ? "Non hai il permesso di scrivere in questa chat: chiedi l'accesso «può interagire»."
+        : "Un messaggio non è stato salvato. Riprova.", true);
+    });
+    return S.queue;
+  }
+
+  // ---------- Claude ----------
+  function wantsClaude(t){ return /(^|\s|@)@claude\b/i.test(t) || /@claude/i.test(t); }
+
+  function transcript(items){
+    return items.slice(-40).map(function(it){
+      var nm = it.kind==="claude" ? "Claude" : ((S.profiles[it.authorId]||{}).name || "Partecipante");
+      return nm+": "+(it.text||"");
+    }).join("\n");
+  }
+
+  function askClaude(){
+    if(!S.sample || S.busy) return;
+    S.busy=true; send.disabled=true;
+    S.streaming={text:""}; render();
+
+    var prompt =
+      "Sei un partecipante in una conversazione a due persone. Qui sotto trovi la trascrizione recente.\n"+
+      "Uno dei due ti ha appena chiamato con @claude.\n\n"+
+      "--- TRASCRIZIONE ---\n"+transcript(allItems())+"\n--- FINE ---\n\n"+
+      "Rispondi in italiano, dando del tu, come un terzo partecipante: breve (2-6 frasi), "+
+      "al punto, senza preamboli, senza ripetere la domanda e senza firmarti. "+
+      "Se ti mancano informazioni per rispondere bene, dillo e chiedi il dato che manca.";
+
+    S.sample(prompt, {
+      onText: function(ev){ if(S.streaming){ S.streaming.text = ev.text; render(); } }
+    }).then(function(res){
+      S.streaming=null;
+      persist({id:uid(), ts:Date.now(), kind:"claude", authorId:S.uid, text:(res.text||"").trim()});
+    }).catch(function(e){
+      var keep = e && e.text ? e.text.trim() : "";
+      S.streaming=null;
+      if(keep) persist({id:uid(), ts:Date.now(), kind:"claude", authorId:S.uid, text:keep+"\n\n[risposta interrotta]"});
+      var m = {
+        not_granted:"Hai rifiutato l'uso di Claude in questa pagina. Ricarica per riprovare.",
+        rate_limited:"Troppe richieste ravvicinate: aspetta un momento.",
+        cancelled:""
+      }[e && e.code] || "Claude non è riuscito a rispondere.";
+      if(m) showBanner(m, true);
+      render();
+    }).then(function(){
+      S.busy=false; send.disabled=false; input.focus();
+    });
+  }
+
+  // ---------- invio ----------
+  function submit(){
+    var text=input.value.trim();
+    if(!text || !S.db || !S.uid) return;
+    input.value=""; autosize();
+    var call = wantsClaude(text);
+    persist({id:uid(), ts:Date.now(), kind:"human", authorId:S.uid, text:text});
+    if(call){
+      if(S.sample) askClaude();
+      else showBanner("Claude non è disponibile in questa vista, il messaggio resta comunque nella chat.", false);
+    }
+  }
+
+  function autosize(){ input.style.height="auto"; input.style.height=Math.min(input.scrollHeight,120)+"px"; }
+
+  send.addEventListener("click", submit);
+  input.addEventListener("input", autosize);
+  input.addEventListener("keydown", function(e){
+    if(e.key==="Enter" && !e.shiftKey && !e.isComposing){ e.preventDefault(); submit(); }
+  });
+  mention.addEventListener("click", function(){
+    if(!/@claude/i.test(input.value)) input.value = (input.value.trim()+" @claude ").replace(/^\s+/,"");
+    input.focus(); autosize();
+  });
+
+  // ---------- avvio ----------
+  function boot(){
+    if(!window.claude || !window.claude.use){
+      empty.textContent="Questa pagina funziona solo aperta dentro Claude.";
+      return;
+    }
+
+    Promise.resolve(window.claude.use("user")).then(function(u){
+      S.user=u;
+      if(!u) return null;
+      return u.me();
+    }).then(function(me){
+      if(me){ S.uid=me.id; S.myName=me.name||""; who.textContent = S.myName ? "Sei "+S.myName : ""; }
+      if(!S.uid) showBanner("Non riesco a identificarti su questa pagina: accedi con il tuo account per scrivere.", true);
+      return window.claude.use("db");
+    }).then(function(db){
+      S.db=db;
+      if(!db){
+        empty.textContent="La chat condivisa non è disponibile in questa vista.";
+        return;
+      }
+      input.disabled=false; send.disabled=false; autosize();
+      db.collection("messages").orderBy("day","desc").limit(40).onSnapshot(function(snap){
+        S.remote=new Map();
+        snap.docs.forEach(function(d){ var v=d.data()||{}; S.remote.set(d.id,{day:v.day,authorId:v.authorId,items:v.items||[]}); });
+        var conf=Object.create(null);
+        S.remote.forEach(function(doc){ (doc.items||[]).forEach(function(x){ conf[x.id]=1; }); });
+        S.pending=S.pending.filter(function(x){ return !conf[x.id]; });
+        render();
+      }, function(e){
+        showBanner(e.code==="revoked" ? "L'accesso a questa chat è stato revocato." : "Connessione alla chat interrotta: ricarica la pagina.", true);
+      });
+      render();
+      return window.claude.use("sample");
+    }).then(function(sm){
+      S.sample=sm;
+      if(!sm){ hint.innerHTML="Claude non è disponibile in questa vista: la chat resta a due."; }
+    }).catch(function(){
+      showBanner("Inizializzazione non riuscita: ricarica la pagina.", true);
+    });
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
