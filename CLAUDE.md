@@ -159,10 +159,15 @@ per `ts`.
 ## Come si lavora su questo progetto
 
 1. Claude Code modifica il file HTML.
-2. La pubblicazione dell'Artifact con le sue capability avviene **dall'interfaccia
-   di chat di claude.ai**, non dal terminale. Se in Code non è disponibile uno
-   strumento di pubblicazione Artifact, il file modificato va riportato lì.
-3. Le capability dichiarate alla pubblicazione sono:
+2. La pubblicazione dell'Artifact con le sue capability si fa dall'interfaccia di
+   chat di claude.ai oppure, quando lo strumento Artifact è disponibile, da
+   Claude Code stesso.
+3. L'Artifact pubblicato di questo progetto è:
+   `https://claude.ai/artifact/WTGSLpHGFTT5aCHwDqyoKy`
+   Ripubblicare sempre su quell'indirizzo, così il link già mandato alle persone
+   continua a funzionare. Un indirizzo nuovo significa una chat vuota e separata,
+   con i messaggi vecchi irraggiungibili.
+4. Le capability dichiarate alla pubblicazione sono:
    `{ db: {}, sample: {}, user: { scopes: ["profile"] } }`.
    Se il codice inizia a usarne una nuova, **va detto esplicitamente** perché va
    dichiarata al momento della pubblicazione, altrimenti risolverà `null`.
