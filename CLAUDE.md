@@ -293,10 +293,17 @@ esterni. Da sapere:
 - l'uscita passa da un compressore: oltre `1.3/0.85` di forza il battito
   comincia a gracchiare, misurato contando i campioni tagliati;
 
-- **il battito si sente solo per i messaggi che le due persone si mandano fra
-  loro**: quelli che contengono `@claude` fanno muovere il cuore ma in
-  silenzio. Scelta dell'utente, e ha ragione: il cuore e' loro, non della
+- **il cuore batte solo per i messaggi che le due persone si mandano fra
+  loro**: quelli che contengono `@claude` lo lasciano fermo e spezzato, senza
+  suono e senza animazione. Scelta dell'utente: il cuore e' loro, non della
   conversazione con Claude;
+- **il suono non si "disegna", si imita il meccanismo**. Tre tentativi sono
+  stati bocciati come "meccanici" finche' il battito era costruito con toni e
+  inviluppi. Quello buono nasce da un colpo brevissimo di rumore che eccita
+  due filtri risonanti (il torace che vibra), piu' un fruscio sordo e lento
+  (il sangue), tutto tagliato a 700 Hz perche' ogni sibilo che resta sopra
+  suona di sintetizzatore. Le frequenze di risonanza cambiano di poco a ogni
+  battito: due colpi identici si riconoscono subito come finti;
 - l'array `BATTITI` in JavaScript e i picchi dei keyframes `batti` nel CSS
   descrivono gli stessi istanti: **se si cambia uno, va cambiato l'altro**,
   altrimenti suono e disegno si sfasano;

@@ -268,38 +268,59 @@
     }catch(e){ audio=null; }
   }
 
-  // Il battito dell'ecografia non e' un colpo di tamburo: e' un fruscio
-  // liquido che si abbassa, il "whoosh". Percio' qui il protagonista e' il
-  // rumore filtrato a banda, con la banda che scende durante il battito; il
-  // tono grave c'e' ma pianissimo, solo per dare peso. Appena lo si alza,
-  // torna a sembrare elettronico.
+  // COME E' FATTO IL BATTITO
+  // Un cuore vero non e' un suono "disegnato": e' un colpo che mette in
+  // risonanza il torace. Quindi qui non si costruisce una forma d'onda, si
+  // imita il meccanismo: un soffio brevissimo di rumore (il colpo) eccita due
+  // filtri risonanti (il corpo che vibra), e sopra ci scorre un fruscio piu'
+  // lento e sordo (il sangue). Tutto passa da un taglio a 700 Hz, perche'
+  // sopra quella soglia un cuore non ha niente da dire e ogni sibilo che
+  // resta suona di sintetizzatore.
   function tonfo(quando, forza, primo){
     if(!audio || !uscita) return;
     try{
-      var f=audio.createBufferSource(), banda=audio.createBiquadFilter(), gf=audio.createGain();
-      f.buffer=rumore;
-      f.playbackRate.value = primo ? 1 : 0.88;   // il secondo tempo, piu' cupo
-      banda.type="bandpass"; banda.Q.value=1.05;
-      banda.frequency.setValueAtTime(primo?430:360, quando);
-      banda.frequency.exponentialRampToValueAtTime(primo?175:150, quando+0.14);
-      gf.gain.setValueAtTime(0.0001, quando);
-      gf.gain.exponentialRampToValueAtTime(forza, quando+0.035);
-      gf.gain.exponentialRampToValueAtTime(0.0001, quando+(primo?0.3:0.24));
-      f.connect(banda); banda.connect(gf); gf.connect(uscita);
-      // parte da un punto a caso del fruscio: due battiti identici suonano finti
-      f.start(quando, Math.random()*0.25); f.stop(quando+0.34);
+      // tutto passa di qui: niente acuti, niente sibilo
+      var morbido=audio.createBiquadFilter();
+      morbido.type="lowpass"; morbido.frequency.setValueAtTime(700, quando);
+      morbido.connect(uscita);
 
-      var o=audio.createOscillator(), g=audio.createGain();
-      o.type="sine";
-      o.frequency.setValueAtTime(115, quando);
-      o.frequency.exponentialRampToValueAtTime(52, quando+0.16);
-      g.gain.setValueAtTime(0.0001, quando);
-      g.gain.exponentialRampToValueAtTime(forza*0.3, quando+0.045);
-      g.gain.exponentialRampToValueAtTime(0.0001, quando+0.3);
-      o.connect(g); g.connect(uscita);
-      o.start(quando); o.stop(quando+0.34);
+      // il colpo: rumore per pochi centesimi di secondo
+      var ecc=audio.createBufferSource(), gEcc=audio.createGain();
+      ecc.buffer=rumore;
+      ecc.playbackRate.value = 0.8 + Math.random()*0.4;
+      gEcc.gain.setValueAtTime(0.0001, quando);
+      gEcc.gain.exponentialRampToValueAtTime(1, quando+0.008);
+      gEcc.gain.exponentialRampToValueAtTime(0.0001, quando+(primo?0.075:0.055));
+      ecc.connect(gEcc);
+      ecc.start(quando, Math.random()*0.3); ecc.stop(quando+0.2);
+
+      // le due risonanze del corpo. La frequenza cambia di poco a ogni
+      // battito: due colpi identici si riconoscono subito come finti.
+      var caso = 0.95 + Math.random()*0.1;
+      var r1=audio.createBiquadFilter(), g1=audio.createGain();
+      r1.type="bandpass"; r1.Q.value=9;
+      r1.frequency.setValueAtTime((primo?88:72)*caso, quando);
+      g1.gain.setValueAtTime(forza, quando);
+      gEcc.connect(r1); r1.connect(g1); g1.connect(morbido);
+
+      var r2=audio.createBiquadFilter(), g2=audio.createGain();
+      r2.type="bandpass"; r2.Q.value=6;
+      r2.frequency.setValueAtTime((primo?168:140)*caso, quando);
+      g2.gain.setValueAtTime(forza*0.5, quando);
+      gEcc.connect(r2); r2.connect(g2); g2.connect(morbido);
+
+      // il sangue che scorre: sordo, piu' lento, sotto al colpo
+      var fl=audio.createBufferSource(), lp=audio.createBiquadFilter(), gf=audio.createGain();
+      fl.buffer=rumore; fl.playbackRate.value=0.55;
+      lp.type="lowpass"; lp.frequency.setValueAtTime(260, quando); lp.Q.value=0.7;
+      gf.gain.setValueAtTime(0.0001, quando);
+      gf.gain.exponentialRampToValueAtTime(forza*0.5, quando+0.05);
+      gf.gain.exponentialRampToValueAtTime(0.0001, quando+(primo?0.24:0.2));
+      fl.connect(lp); lp.connect(gf); gf.connect(morbido);
+      fl.start(quando, Math.random()*0.3); fl.stop(quando+0.3);
     }catch(e){}
   }
+
 
 
 
@@ -313,10 +334,12 @@
       // all'occhio ma sono quelli che lo fanno sentire vivo.
       var scarto = (Math.random()-0.5)*0.014;
       var intensita = 1 + (Math.random()-0.5)*0.14;
-      // Livello scelto misurando: con l'irregolarita' compresa, il picco
-      // resta sotto il limite e non si sente nessuna distorsione.
-      tonfo(ora+t+scarto, 2.0*intensita, true);
-      tonfo(ora+t+0.16+scarto+Math.random()*0.012, 1.3*intensita, false);
+      // Livello scelto misurando, su cinque prove: con l'irregolarita'
+      // compresa il picco resta a 0,84 e nessun campione viene tagliato.
+      // Con questa costruzione (risonanze) i numeri sono piu' alti perche'
+      // i filtri attenuano molto: non confrontarli con quelli di prima.
+      tonfo(ora+t+scarto, 4.0*intensita, true);
+      tonfo(ora+t+0.16+scarto+Math.random()*0.012, 2.6*intensita, false);
     });
   }
 
@@ -381,12 +404,12 @@
     items.forEach(function(it){
       if(S.visti[it.id]) return;
       S.visti[it.id]=1;
-      if(!S.primoCaricamento && it.kind==="human" && adesso-(it.ts||0) < 120000){
-        batti=true;
-        // Il battito si SENTE solo per i messaggi che le due persone si
-        // mandano fra loro: quelli rivolti a Claude fanno muovere il cuore
-        // ma in silenzio. Il cuore e' loro, non della conversazione con lui.
-        if(!wantsClaude(it.text||"")) conSuono=true;
+      // Il cuore batte solo per i messaggi che le due persone si mandano
+      // fra loro. Quelli rivolti a Claude lo lasciano fermo e spezzato: il
+      // cuore e' loro, non della conversazione con lui.
+      if(!S.primoCaricamento && it.kind==="human" && adesso-(it.ts||0) < 120000
+         && !wantsClaude(it.text||"")){
+        batti=true; conSuono=true;
       }
     });
     if(batti) animaCuore(conSuono);
