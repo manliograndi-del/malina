@@ -251,7 +251,7 @@
     try{
       if(!audio){
         audio = new AC();
-        var n = Math.floor(audio.sampleRate*0.3);
+        var n = Math.floor(audio.sampleRate*0.6);
         rumore = audio.createBuffer(1, n, audio.sampleRate);
         var d = rumore.getChannelData(0), scorso=0;
         for(var i=0;i<n;i++){ var bianco=Math.random()*2-1; scorso=(scorso+0.02*bianco)/1.02; d[i]=scorso*3.2; }
@@ -268,45 +268,39 @@
     }catch(e){ audio=null; }
   }
 
-  // Un battito e' fatto di due cose sovrapposte: un tonfo morbido e un
-  // fruscio. Il fruscio e' la parte "da ecografia" ed e' anche quella che un
-  // altoparlante di telefono riproduce meglio, quindi e' lui a portare il
-  // volume. Niente toni aggiunti sopra: suonavano elettronici.
-  function tonfo(quando, forza){
+  // Il battito dell'ecografia non e' un colpo di tamburo: e' un fruscio
+  // liquido che si abbassa, il "whoosh". Percio' qui il protagonista e' il
+  // rumore filtrato a banda, con la banda che scende durante il battito; il
+  // tono grave c'e' ma pianissimo, solo per dare peso. Appena lo si alza,
+  // torna a sembrare elettronico.
+  function tonfo(quando, forza, primo){
     if(!audio || !uscita) return;
     try{
-      // il corpo del tonfo: attacco morbido, coda lunga
+      var f=audio.createBufferSource(), banda=audio.createBiquadFilter(), gf=audio.createGain();
+      f.buffer=rumore;
+      f.playbackRate.value = primo ? 1 : 0.88;   // il secondo tempo, piu' cupo
+      banda.type="bandpass"; banda.Q.value=1.05;
+      banda.frequency.setValueAtTime(primo?430:360, quando);
+      banda.frequency.exponentialRampToValueAtTime(primo?175:150, quando+0.14);
+      gf.gain.setValueAtTime(0.0001, quando);
+      gf.gain.exponentialRampToValueAtTime(forza, quando+0.035);
+      gf.gain.exponentialRampToValueAtTime(0.0001, quando+(primo?0.3:0.24));
+      f.connect(banda); banda.connect(gf); gf.connect(uscita);
+      // parte da un punto a caso del fruscio: due battiti identici suonano finti
+      f.start(quando, Math.random()*0.25); f.stop(quando+0.34);
+
       var o=audio.createOscillator(), g=audio.createGain();
       o.type="sine";
-      o.frequency.setValueAtTime(145, quando);
-      o.frequency.exponentialRampToValueAtTime(62, quando+0.18);
+      o.frequency.setValueAtTime(115, quando);
+      o.frequency.exponentialRampToValueAtTime(52, quando+0.16);
       g.gain.setValueAtTime(0.0001, quando);
-      g.gain.exponentialRampToValueAtTime(forza, quando+0.035);
-      g.gain.exponentialRampToValueAtTime(0.0001, quando+0.34);
+      g.gain.exponentialRampToValueAtTime(forza*0.3, quando+0.045);
+      g.gain.exponentialRampToValueAtTime(0.0001, quando+0.3);
       o.connect(g); g.connect(uscita);
-      o.start(quando); o.stop(quando+0.38);
-
-      // un'ombra appena sopra, cortissima: da' corpo senza diventare un tono
-      var o2=audio.createOscillator(), g2=audio.createGain();
-      o2.type="sine";
-      o2.frequency.setValueAtTime(230, quando);
-      o2.frequency.exponentialRampToValueAtTime(110, quando+0.08);
-      g2.gain.setValueAtTime(0.0001, quando);
-      g2.gain.exponentialRampToValueAtTime(forza*0.14, quando+0.02);
-      g2.gain.exponentialRampToValueAtTime(0.0001, quando+0.1);
-      o2.connect(g2); g2.connect(uscita);
-      o2.start(quando); o2.stop(quando+0.12);
-
-      // il fruscio: e' lui che si sente, e non ha niente di meccanico
-      var f=audio.createBufferSource(), passa=audio.createBiquadFilter(), gf=audio.createGain();
-      f.buffer=rumore; passa.type="lowpass"; passa.frequency.setValueAtTime(520, quando);
-      gf.gain.setValueAtTime(0.0001, quando);
-      gf.gain.exponentialRampToValueAtTime(forza*0.95, quando+0.035);
-      gf.gain.exponentialRampToValueAtTime(0.0001, quando+0.3);
-      f.connect(passa); passa.connect(gf); gf.connect(uscita);
-      f.start(quando); f.stop(quando+0.34);
+      o.start(quando); o.stop(quando+0.34);
     }catch(e){}
   }
+
 
 
   // Quattro battiti, ognuno in due tempi (il "tu-tum"), agganciati ai
@@ -314,9 +308,15 @@
   function programmaBattiti(){
     var ora=audio.currentTime;
     BATTITI.forEach(function(t){
-      // Misurato: oltre questi valori il battito comincia a gracchiare.
-      tonfo(ora+t, 1.35);
-      tonfo(ora+t+0.17, 0.9);
+      // Un cuore non e' un metronomo: ogni battito cade un istante prima o
+      // dopo e con un filo di forza diversa. Sono scarti impercettibili
+      // all'occhio ma sono quelli che lo fanno sentire vivo.
+      var scarto = (Math.random()-0.5)*0.014;
+      var intensita = 1 + (Math.random()-0.5)*0.14;
+      // Livello scelto misurando: con l'irregolarita' compresa, il picco
+      // resta sotto il limite e non si sente nessuna distorsione.
+      tonfo(ora+t+scarto, 2.0*intensita, true);
+      tonfo(ora+t+0.16+scarto+Math.random()*0.012, 1.3*intensita, false);
     });
   }
 
