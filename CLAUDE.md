@@ -139,18 +139,22 @@ Più indietro di così la pagina non carica, quindi Claude non può vederlo.
 
 ## Modello dei dati (non cambiarlo senza motivo)
 
-Un documento **per giorno e per autore**:
+Un documento **per giorno e per persona**:
 
 ```
-messages/2026-09-19__u_abc123
+messages/2026-09-19__u_abc123__a
 {
   day: "2026-09-19",
-  authorId: "u_abc123",
+  authorId: "u_abc123__a",
   items: [
-    { id: "...", ts: 1758... , kind: "human" | "claude", authorId: "u_abc123", text: "..." }
+    { id: "...", ts: 1758..., kind: "human" | "claude",
+      authorId: "u_abc123__a", nome: "Manlio", text: "..." }
   ]
 }
 ```
+
+L'identita' con cui si scrive e' **l'account piu' la persona scelta**
+(`u_abc123__a`), non il solo account: vedi la sezione qui sotto.
 
 Perché così:
 - ognuno scrive **solo il proprio documento** → due messaggi simultanei non si
@@ -166,9 +170,37 @@ per `ts`.
 
 ## Accesso delle persone
 
-- L'altra persona deve avere l'artifact condiviso con il livello **"può
-  interagire"** o superiore. Con "può visualizzare" legge ma le scritture vengono
-  rifiutate con `invalid_argument`.
+**Scelta dell'utente: le due persone usano lo stesso account Claude** (il suo, Pro:
+vuole essere lui a pagare le risposte di Claude anche quando le chiede l'altra).
+Questo ha una conseguenza che decide il codice: la piattaforma vede un solo
+utente, quindi `user.me()` restituisce lo stesso id a entrambe e
+`user.profiles()` non puo' distinguerle.
+
+Percio' la pagina fa da sola quello che la piattaforma non puo':
+
+- al primo ingresso chiede **"chi sei?"** (elenco `PERSONE` in cima allo script)
+  e memorizza la scelta in `localStorage` — e' una preferenza del singolo
+  telefono, non un messaggio, quindi e' un uso lecito;
+- l'identita' di scrittura e' `account__persona`, cosi' **ognuna scrive il
+  proprio documento** e la regola "nessuno sovrascrive l'altro" resta valida.
+  Senza questo, con un account solo, i due telefoni riscriverebbero lo stesso
+  documento e i messaggi si cancellerebbero a vicenda, in silenzio;
+- il nome scelto viaggia **dentro il messaggio** (campo `nome`). E' l'unica
+  eccezione ammessa alla regola "mai salvare nomi in `db`", e vale solo perche'
+  con l'account condiviso `profiles()` non puo' risolvere niente: i messaggi che
+  hanno `nome` non passano da `profiles()`, gli altri si'.
+- al posto della foto si mostra l'iniziale del nome: la foto dell'account
+  sarebbe identica per entrambe.
+
+Se un giorno le due persone avranno account distinti, il codice continua a
+funzionare: basta non scegliere nessuna persona e tutto torna a passare da
+`user.me()` e `user.profiles()`.
+
+Restano validi i vincoli di condivisione:
+
+- l'altra persona deve avere l'artifact condiviso con il livello **"può
+  interagire"** / Editor o superiore. Con "può visualizzare" legge ma le
+  scritture vengono rifiutate con `invalid_argument`.
 - Chi arriva da fuori organizzazione conta come sola lettura.
 - Quando una scrittura viene rifiutata, la pagina deve dirlo in chiaro e passare
   in sola lettura, non ritentare.
