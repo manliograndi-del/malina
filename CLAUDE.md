@@ -263,9 +263,14 @@ un'altra.
 
 ### Suono del battito
 
-Generato dalla pagina con l'API audio del browser — un tonfo, la sua ottava
-sopra e un fruscio filtrato — perche' il progetto vieta di caricare file da
-domini esterni. Da sapere:
+Generato dalla pagina con l'API audio del browser — un tonfo morbido e un
+fruscio filtrato — perche' il progetto vieta di caricare file da domini
+esterni. Da sapere:
+
+- **niente toni sovrapposti al tonfo**: un'ottava sopra rende il battito
+  udibile ma suona elettronico, e l'utente l'ha bocciata ("troppo meccanico").
+  A portare il volume dev'essere il **fruscio**, che non ha carattere tonale
+  ed e' proprio la voce dell'ecografia;
 
 - **le frequenze non devono scendere sotto i 150 Hz**: l'altoparlante di un
   telefono li' non riproduce quasi niente. La prima versione scendeva a 32 Hz
