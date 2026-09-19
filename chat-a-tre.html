@@ -12,6 +12,7 @@
     --bg:#f7f6f3; --panel:#ffffff; --ink:#1d1c1a; --ink-soft:#6b6863;
     --line:#e3e0da; --mine:#1f6feb; --mine-ink:#ffffff;
     --claude-bg:#f3ecdf; --claude-line:#d9c9a8; --danger:#a13d2d;
+    --cuore:#d2635f;
     --radius:16px;
   }
   @media (prefers-color-scheme: dark){
@@ -19,12 +20,14 @@
       --bg:#17181a; --panel:#1f2124; --ink:#ececec; --ink-soft:#9a9a97;
       --line:#32353a; --mine:#2f6ddb; --mine-ink:#ffffff;
       --claude-bg:#2a2620; --claude-line:#4a4133; --danger:#e08a78;
+      --cuore:#c2615e;
     }
   }
   :root[data-theme="dark"]{
     --bg:#17181a; --panel:#1f2124; --ink:#ececec; --ink-soft:#9a9a97;
     --line:#32353a; --mine:#2f6ddb; --mine-ink:#ffffff;
     --claude-bg:#2a2620; --claude-line:#4a4133; --danger:#e08a78;
+    --cuore:#c2615e;
   }
   *,*::before,*::after{box-sizing:inherit}
   html,body{height:100%}
@@ -79,9 +82,51 @@
     margin:10px 12px; padding:10px 12px; border:1px solid var(--line);
     border-radius:12px; background:var(--panel); font-size:14px; color:var(--ink-soft);
   }
+
+  /* ---------- cuore di sfondo ---------- */
+  /* Sta dietro a tutto e non intercetta tocchi: e' solo decorazione. */
+  #cuore{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #cuore svg{width:min(60vw,290px); height:auto; opacity:.14; overflow:visible}
+  #gruppo{transform-origin:50px 48px}
+  .meta{
+    fill:var(--cuore); transform-origin:50px 48px;
+    transition:transform .55s cubic-bezier(.22,.9,.3,1);
+  }
+  /* a riposo: spezzato, le due meta' scostate e inclinate */
+  .sx{transform:translate(-9px,3px) rotate(-9deg)}
+  .dx{transform:translate(9px,3px) rotate(9deg)}
+  /* quando arriva un messaggio: si ricompone e batte */
+  #cuore.unito .meta{transform:none}
+  #cuore.unito #gruppo{animation:batti 2s ease-in-out .5s}
+  @keyframes batti{
+    0%,100%{transform:scale(1)}
+    6%,31%,56%,81%{transform:scale(1.1)}
+    15%,40%,65%,90%{transform:scale(1)}
+  }
+  /* chi ha chiesto meno animazioni al telefono vede il cuore fermo */
+  @media (prefers-reduced-motion: reduce){
+    .meta{transition:none}
+    #cuore.unito #gruppo{animation:none}
+  }
+  /* la chat sta sopra al cuore */
+  header,#banner,#log,footer{position:relative; z-index:1}
 </style>
 </head>
 <body>
+
+<div id="cuore" aria-hidden="true">
+  <svg viewBox="-8 -4 116 100" xmlns="http://www.w3.org/2000/svg">
+    <g id="gruppo">
+      <!-- le due meta' condividono la stessa linea di frattura, cosi' combaciano -->
+      <path class="meta sx" d="M50 20 C46 9 37 2 27 2 C7 2 -5 26 10 45 L50 88 L44 70 L55 57 L43 43 L53 30 Z"/>
+      <path class="meta dx" d="M50 20 C54 9 63 2 73 2 C93 2 105 26 90 45 L50 88 L44 70 L55 57 L43 43 L53 30 Z"/>
+    </g>
+  </svg>
+</div>
+
 <header>
   <h1>Chat</h1>
   <span class="who" id="who"></span>
@@ -111,19 +156,47 @@
     profiles:{},
     streaming:null,        // {text}
     busy:false,
-    queue:Promise.resolve()
+    queue:Promise.resolve(),
+    primoCaricamento:true,  // la cronologia iniziale non fa battere il cuore
+    visti:Object.create(null)
   };
 
   var log=document.getElementById("log"), empty=document.getElementById("empty"),
       input=document.getElementById("input"), send=document.getElementById("send"),
       mention=document.getElementById("mention"), hint=document.getElementById("hint"),
-      who=document.getElementById("who"), banner=document.getElementById("banner");
+      who=document.getElementById("who"), banner=document.getElementById("banner"),
+      cuore=document.getElementById("cuore");
 
   function today(){ return new Date().toISOString().slice(0,10); }
   function uid(){ return Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8); }
   function hhmm(ts){ var d=new Date(ts); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
   function esc(t){ var n=document.createElement("div"); n.textContent=t; return n; }
   function showBanner(msg, bad){ banner.hidden=false; banner.textContent=msg; banner.classList.toggle("err", !!bad); }
+
+  // ---------- cuore ----------
+  // Le due meta' si ricongiungono e battono quattro volte, poi tornano
+  // separate. Solo decorazione: se qualcosa qui non va, la chat funziona.
+  var cuoreTimer=null;
+  function animaCuore(){
+    if(!cuore) return;
+    clearTimeout(cuoreTimer);
+    cuore.classList.remove("unito");
+    void cuore.offsetWidth;          // fa ripartire l'animazione da capo
+    cuore.classList.add("unito");
+    cuoreTimer=setTimeout(function(){ cuore.classList.remove("unito"); }, 2700);
+  }
+
+  // Batte solo per i messaggi scritti dalle persone e appena arrivati: non
+  // per la cronologia che si carica all'apertura, ne' per le risposte di Claude.
+  function controllaNuovi(items){
+    var batti=false, adesso=Date.now();
+    items.forEach(function(it){
+      if(S.visti[it.id]) return;
+      S.visti[it.id]=1;
+      if(!S.primoCaricamento && it.kind==="human" && adesso-(it.ts||0) < 120000) batti=true;
+    });
+    if(batti) animaCuore();
+  }
 
   // ---------- raccolta e ordinamento ----------
   function allItems(){
@@ -142,6 +215,7 @@
   var renderToken=0;
   function render(){
     var items=allItems(), token=++renderToken;
+    controllaNuovi(items);
     var ids=[]; items.forEach(function(it){ if(it.authorId && ids.indexOf(it.authorId)<0) ids.push(it.authorId); });
 
     var draw=function(){
@@ -347,6 +421,7 @@
         S.remote.forEach(function(doc){ (doc.items||[]).forEach(function(x){ conf[x.id]=1; }); });
         S.pending=S.pending.filter(function(x){ return !conf[x.id]; });
         render();
+        S.primoCaricamento=false;
       }, function(e){
         showBanner(e.code==="revoked" ? "L'accesso a questa chat è stato revocato." : "Connessione alla chat interrotta: ricarica la pagina.", true);
       });
