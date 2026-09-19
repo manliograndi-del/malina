@@ -297,13 +297,14 @@ esterni. Da sapere:
   loro**: quelli che contengono `@claude` lo lasciano fermo e spezzato, senza
   suono e senza animazione. Scelta dell'utente: il cuore e' loro, non della
   conversazione con Claude;
-- **il suono non si "disegna", si imita il meccanismo**. Tre tentativi sono
-  stati bocciati come "meccanici" finche' il battito era costruito con toni e
-  inviluppi. Quello buono nasce da un colpo brevissimo di rumore che eccita
-  due filtri risonanti (il torace che vibra), piu' un fruscio sordo e lento
-  (il sangue), tutto tagliato a 700 Hz perche' ogni sibilo che resta sopra
-  suona di sintetizzatore. Le frequenze di risonanza cambiano di poco a ogni
-  battito: due colpi identici si riconoscono subito come finti;
+- **il timbro e' stato scelto dall'utente all'ascolto**, dopo che quattro
+  versioni costruite "a tavolino" erano state bocciate come meccaniche. Il
+  metodo che ha funzionato: generare le varianti in file audio e fargliele
+  sentire, invece di descriverle. La versione scelta e' la piu' **ovattata**:
+  niente toni, niente colpo secco, solo rumore rallentato e tagliato molto in
+  basso (lowpass a 285/235 Hz che scende ancora mentre il battito si spegne),
+  come il cuore sentito attraverso il liquido. **E' il sibilo sopra i 300 Hz a
+  far sembrare il suono una macchina**: chi lo ritocca non lo riapra;
 - l'array `BATTITI` in JavaScript e i picchi dei keyframes `batti` nel CSS
   descrivono gli stessi istanti: **se si cambia uno, va cambiato l'altro**,
   altrimenti suono e disegno si sfasano;

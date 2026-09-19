@@ -269,57 +269,32 @@
   }
 
   // COME E' FATTO IL BATTITO
-  // Un cuore vero non e' un suono "disegnato": e' un colpo che mette in
-  // risonanza il torace. Quindi qui non si costruisce una forma d'onda, si
-  // imita il meccanismo: un soffio brevissimo di rumore (il colpo) eccita due
-  // filtri risonanti (il corpo che vibra), e sopra ci scorre un fruscio piu'
-  // lento e sordo (il sangue). Tutto passa da un taglio a 700 Hz, perche'
-  // sopra quella soglia un cuore non ha niente da dire e ogni sibilo che
-  // resta suona di sintetizzatore.
+  // Scelto all'ascolto fra tre versioni: questa e' la piu' ovattata, quella
+  // che somiglia al battito sentito attraverso il liquido, in ecografia.
+  // Niente colpo secco e niente toni: solo rumore sordo, rallentato e
+  // tagliato in basso, con la forma di un battito. Tutto quello che sta
+  // sopra i 300 Hz e' sibilo, ed e' il sibilo a far sembrare il suono una
+  // macchina: per questo il filtro taglia cosi' in basso.
   function tonfo(quando, forza, primo){
     if(!audio || !uscita) return;
     try{
-      // tutto passa di qui: niente acuti, niente sibilo
-      var morbido=audio.createBiquadFilter();
-      morbido.type="lowpass"; morbido.frequency.setValueAtTime(700, quando);
-      morbido.connect(uscita);
-
-      // il colpo: rumore per pochi centesimi di secondo
-      var ecc=audio.createBufferSource(), gEcc=audio.createGain();
-      ecc.buffer=rumore;
-      ecc.playbackRate.value = 0.8 + Math.random()*0.4;
-      gEcc.gain.setValueAtTime(0.0001, quando);
-      gEcc.gain.exponentialRampToValueAtTime(1, quando+0.008);
-      gEcc.gain.exponentialRampToValueAtTime(0.0001, quando+(primo?0.075:0.055));
-      ecc.connect(gEcc);
-      ecc.start(quando, Math.random()*0.3); ecc.stop(quando+0.2);
-
-      // le due risonanze del corpo. La frequenza cambia di poco a ogni
-      // battito: due colpi identici si riconoscono subito come finti.
-      var caso = 0.95 + Math.random()*0.1;
-      var r1=audio.createBiquadFilter(), g1=audio.createGain();
-      r1.type="bandpass"; r1.Q.value=9;
-      r1.frequency.setValueAtTime((primo?88:72)*caso, quando);
-      g1.gain.setValueAtTime(forza, quando);
-      gEcc.connect(r1); r1.connect(g1); g1.connect(morbido);
-
-      var r2=audio.createBiquadFilter(), g2=audio.createGain();
-      r2.type="bandpass"; r2.Q.value=6;
-      r2.frequency.setValueAtTime((primo?168:140)*caso, quando);
-      g2.gain.setValueAtTime(forza*0.5, quando);
-      gEcc.connect(r2); r2.connect(g2); g2.connect(morbido);
-
-      // il sangue che scorre: sordo, piu' lento, sotto al colpo
       var fl=audio.createBufferSource(), lp=audio.createBiquadFilter(), gf=audio.createGain();
-      fl.buffer=rumore; fl.playbackRate.value=0.55;
-      lp.type="lowpass"; lp.frequency.setValueAtTime(260, quando); lp.Q.value=0.7;
+      fl.buffer=rumore;
+      // rallentato, e mai due volte uguale
+      fl.playbackRate.value = (primo?0.5:0.42) * (0.92+Math.random()*0.16);
+      lp.type="lowpass"; lp.Q.value=1.4;
+      lp.frequency.setValueAtTime((primo?285:235) * (0.94+Math.random()*0.12), quando);
+      // e mentre il battito si spegne il suono si fa piu' cupo, come
+      // qualcosa che si allontana nell'acqua
+      lp.frequency.exponentialRampToValueAtTime(primo?150:130, quando+0.26);
       gf.gain.setValueAtTime(0.0001, quando);
-      gf.gain.exponentialRampToValueAtTime(forza*0.5, quando+0.05);
-      gf.gain.exponentialRampToValueAtTime(0.0001, quando+(primo?0.24:0.2));
-      fl.connect(lp); lp.connect(gf); gf.connect(morbido);
-      fl.start(quando, Math.random()*0.3); fl.stop(quando+0.3);
+      gf.gain.exponentialRampToValueAtTime(forza, quando+0.045);
+      gf.gain.exponentialRampToValueAtTime(0.0001, quando+(primo?0.3:0.24));
+      fl.connect(lp); lp.connect(gf); gf.connect(uscita);
+      fl.start(quando, Math.random()*0.3); fl.stop(quando+0.34);
     }catch(e){}
   }
+
 
 
 
@@ -334,12 +309,12 @@
       // all'occhio ma sono quelli che lo fanno sentire vivo.
       var scarto = (Math.random()-0.5)*0.014;
       var intensita = 1 + (Math.random()-0.5)*0.14;
-      // Livello scelto misurando, su cinque prove: con l'irregolarita'
-      // compresa il picco resta a 0,84 e nessun campione viene tagliato.
-      // Con questa costruzione (risonanze) i numeri sono piu' alti perche'
-      // i filtri attenuano molto: non confrontarli con quelli di prima.
-      tonfo(ora+t+scarto, 4.0*intensita, true);
-      tonfo(ora+t+0.16+scarto+Math.random()*0.012, 2.6*intensita, false);
+      // Livello scelto misurando piu' volte: il picco resta sotto il limite
+      // e nessun campione viene tagliato. I numeri dipendono da come e'
+      // costruito il suono: non vanno confrontati con quelli delle versioni
+      // precedenti.
+      tonfo(ora+t+scarto, 2.0*intensita, true);
+      tonfo(ora+t+0.16+scarto+Math.random()*0.012, 1.4*intensita, false);
     });
   }
 
