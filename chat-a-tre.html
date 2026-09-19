@@ -80,14 +80,23 @@
     border-radius:12px; background:var(--bg); font-size:14px; color:var(--ink-soft);
   }
 
-  /* scorciatoie per chiedere un parere a Claude */
-  .scorciatoie{display:flex; gap:8px; flex-wrap:wrap; margin:0 0 8px}
+  /* Le tre scorciatoie per chiedere un parere a Claude: una riga sola,
+     ben visibili, ognuna larga quanto le serve. */
+  .scorciatoie{display:flex; gap:6px; flex-wrap:nowrap; margin:0 0 8px}
   .chip{
-    font:inherit; font-size:13px; line-height:1.2; padding:7px 12px; min-height:34px;
-    border:1px solid var(--claude-line); background:var(--bolla-claude);
-    color:var(--ink); border-radius:999px; cursor:pointer;
+    font:inherit; font-size:14px; font-weight:600; line-height:1.2;
+    padding:10px 8px; min-height:40px; flex:1 1 auto; min-width:0;
+    white-space:nowrap; text-align:center;
+    border:1px solid var(--claude-line); background:var(--claude-bg);
+    color:var(--ink); border-radius:12px; cursor:pointer;
   }
   .chip:disabled{opacity:.4; cursor:default}
+  /* sui telefoni piu' stretti le tre scritte non ci stanno a questa misura */
+  @media (max-width: 365px){
+    .chip{font-size:13px; padding:10px 5px}
+  }
+  /* il tasto che scrive @claude nel messaggio: con la scritta, non con un simbolo */
+  #mention{font-size:13px; font-weight:600; padding:9px 10px; color:var(--ink-soft)}
   /* tasto per spegnere il suono del battito */
   #suono{
     border:none; background:none; padding:0 0 0 10px; min-height:0;
@@ -152,15 +161,16 @@
 <footer>
   <div id="banner" class="banner" hidden></div>
   <div class="scorciatoie">
-    <button class="chip" id="chip-ultimo" type="button" disabled>&#10022; Sull'ultimo messaggio</button>
-    <button class="chip" id="chip-scambi" type="button" disabled>&#10022; Sugli ultimi 3 scambi</button>
+    <button class="chip" id="chip-ultimo" type="button" disabled>Ultimo</button>
+    <button class="chip" id="chip-scambi" type="button" disabled>Ultimi tre scambi</button>
+    <button class="chip" id="chip-tutto" type="button" disabled>Conversazione</button>
   </div>
   <div class="bar">
-    <button id="mention" type="button" title="Chiama Claude">✦</button>
+    <button id="mention" type="button" title="Scrive @claude all'inizio del messaggio">@claude</button>
     <textarea id="input" rows="1" placeholder="Scrivi un messaggio…" disabled></textarea>
     <button id="send" class="primary" type="button" disabled>Invia</button>
   </div>
-  <p class="hint" id="hint">Scrivi <b>@claude</b> nel messaggio per farlo intervenire.</p>
+  <p class="hint" id="hint">I tre pulsanti qui sopra chiedono un parere a Claude. Oppure scrivi <b>@claude</b> dentro un messaggio.</p>
 </footer>
 
 <script>
@@ -189,6 +199,7 @@
       tastoSuono=document.getElementById("suono"),
       chipUltimo=document.getElementById("chip-ultimo"),
       chipScambi=document.getElementById("chip-scambi"),
+      chipTutto=document.getElementById("chip-tutto"),
       nientaltro=null;
 
   function today(){ return new Date().toISOString().slice(0,10); }
@@ -555,6 +566,7 @@
   function abilitaComandi(si){
     chipUltimo.disabled = !si || !S.sample;
     chipScambi.disabled = !si || !S.sample;
+    chipTutto.disabled  = !si || !S.sample;
   }
 
   // Chiamata scrivendo @claude dentro un messaggio.
@@ -633,8 +645,24 @@
     });
   }
 
+  // Tutta la conversazione che la pagina riesce a tenere sott'occhio.
+  function chiediTuttaLaConversazione(){
+    var tutti=allItems();
+    if(!tutti.length){
+      showBanner("La chat e' ancora vuota: scrivete qualcosa e poi riprova.", false);
+      return;
+    }
+    chiediAClaude(ultimi(tutti), function(){
+      return "Ti e' stato chiesto con un pulsante che cosa pensi della conversazione "+
+             "nel suo insieme, non di un singolo messaggio ne' degli ultimi scambi.\n"+
+             "Guarda tutta la trascrizione: come procede fra queste due persone, di che "+
+             "cosa parlano davvero, che cosa noti nel modo in cui si parlano.";
+    });
+  }
+
   chipUltimo.addEventListener("click", function(){ puliscBanner(); preparaAudio(); chiediUltimoMessaggio(); });
   chipScambi.addEventListener("click", function(){ puliscBanner(); preparaAudio(); chiediUltimiScambi(); });
+  chipTutto.addEventListener("click", function(){ puliscBanner(); preparaAudio(); chiediTuttaLaConversazione(); });
 
   // ---------- invio ----------
   function submit(){
@@ -658,9 +686,15 @@
   input.addEventListener("keydown", function(e){
     if(e.key==="Enter" && !e.shiftKey && !e.isComposing){ e.preventDefault(); submit(); }
   });
+  // Mette @claude all'inizio di quello che si sta scrivendo, cosi' si vede
+  // comparire nella casella: e' l'unico modo perche' si capisca che ha fatto
+  // qualcosa. Se c'e' gia', non lo raddoppia.
   mention.addEventListener("click", function(){
-    if(!/@claude/i.test(input.value)) input.value = (input.value.trim()+" @claude ").replace(/^\s+/,"");
+    if(!/@claude/i.test(input.value)){
+      input.value = "@claude " + input.value.replace(/^\s+/,"");
+    }
     input.focus(); autosize();
+    try{ input.setSelectionRange(input.value.length, input.value.length); }catch(e){}
   });
 
   // ---------- avvio ----------

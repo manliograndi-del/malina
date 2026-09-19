@@ -265,8 +265,16 @@ Da sapere:
 
 ### Pulsanti per chiedere un parere
 
-Oltre a `@claude` scritto nel messaggio, due pulsanti chiedono a Claude un
-parere: sull'ultimo messaggio dell'altra persona, e sugli ultimi tre **scambi**.
+Oltre a `@claude` scritto nel messaggio, tre pulsanti su una sola riga chiedono
+a Claude un parere — **Ultimo** (l'ultimo messaggio dell'altra persona),
+**Ultimi tre scambi**, **Conversazione** (tutta quella che la pagina tiene
+sott'occhio). Il tasto accanto alla casella porta scritto `@claude` e lo
+inserisce all'inizio del messaggio: prima era un simbolo e non si capiva ne'
+a cosa servisse ne' se avesse fatto qualcosa.
+
+Quando un pulsante non ha nulla da commentare lo dice **in fondo, sopra ai
+pulsanti stessi**: l'avviso in cima alla pagina non si vedeva e i pulsanti
+sembravano rotti.
 Uno scambio e' tutto quello che una persona scrive di fila prima che risponda
 l'altra: tre messaggi consecutivi della stessa persona sono un solo scambio, e
 le risposte di Claude non contano. Tutte le strade passano da `chiediAClaude()`:
