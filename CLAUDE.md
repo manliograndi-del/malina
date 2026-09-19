@@ -325,6 +325,26 @@ cambia solo il compito e la fetta di conversazione, mai il modo di chiamare.
 
 ---
 
+## Messaggi vocali: scartati, e non per motivi tecnici
+
+Tecnicamente si potrebbero fare (registrazione dal microfono, file nel magazzino
+allegati della pagina, che accetta webm e mp4 fino a 20 MB). **Sono stati
+scartati dall'utente per una ragione di sostanza: Claude legge solo testo, quindi
+i vocali sarebbero buchi muti nella conversazione** e i tre pulsanti del parere
+non avrebbero nulla da commentare. Il senso della chat e' che il terzo
+partecipante legga tutto.
+
+Restano due ostacoli pratici, se un giorno se ne riparlasse: non si sa se il
+permesso del microfono arrivi dentro la pagina pubblicata, e dichiarare la
+capability `assets` rende la pagina riservata all'organizzazione del
+proprietario — con il rischio di chiudere fuori l'altra persona, che ha un
+account suo. In quel caso si prova su una **copia** della pagina, mai su questa.
+
+L'alternativa che va gia' bene oggi: il tasto del microfono sulla tastiera del
+telefono. Si parla, arriva come testo, e Claude lo legge.
+
+---
+
 ## Se un giorno si passa a un'app vera (fuori da claude.ai)
 
 Cambia tutto tranne il modello dei dati e il prompt:
