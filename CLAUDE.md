@@ -238,6 +238,19 @@ un'altra.
   cronologia che si carica all'apertura, non per le risposte di Claude). E'
   decorazione inerte: sta sotto a tutto con `pointer-events:none` e non deve
   mai poter rompere la chat.
+- **Scorrimento e disegno** (l'utente ha segnalato l'elenco poco reattivo):
+  - il cuore sta su un livello grafico suo (`transform:translateZ(0)`,
+    `will-change`, `contain:paint`), altrimenti un disegno grande e fisso
+    dietro a bolle semitrasparenti viene ridipinto a ogni frame;
+  - le righe fuori schermo non si disegnano (`content-visibility:auto`);
+  - **non si ridisegna l'elenco se non e' cambiato niente** (confronto di una
+    firma), e soprattutto **mai l'elenco intero a ogni pezzo di risposta di
+    Claude**: si riscrive solo la bolla che sta crescendo. Misurato su 200
+    messaggi: 12.500 bolle ricostruite contro 400, e da 9 fotogrammi lenti a
+    nessuno;
+  - si segue la conversazione verso il fondo **solo se si era gia' in fondo**:
+    prima ogni pezzo di risposta riportava a forza in fondo e non si riusciva
+    a leggere indietro mentre Claude scriveva.
 - La pagina non si blocca mai mentre Claude risponde: durante l'attesa (5-60
   secondi) restano spenti solo i pulsanti che farebbero partire una seconda
   domanda, mai "Invia". Spegnere "Invia" era un difetto vero, segnalato

@@ -36,9 +36,17 @@
   }
   header h1{font-size:16px; margin:0; font-weight:600; letter-spacing:.01em}
   header .who{font-size:13px; color:var(--ink-soft); margin-left:auto}
-  #log{flex:1 1 auto; overflow-y:auto; padding:16px 12px 8px; -webkit-overflow-scrolling:touch}
+  #log{
+    flex:1 1 auto; overflow-y:auto; padding:16px 12px 8px;
+    -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+  }
   .empty{color:var(--ink-soft); font-size:14px; text-align:center; margin-top:32px; padding:0 24px}
-  .row{display:flex; gap:8px; margin-bottom:14px; align-items:flex-end}
+  .row{
+    display:flex; gap:8px; margin-bottom:14px; align-items:flex-end;
+    /* le righe fuori dallo schermo non vengono disegnate finche' non servono:
+       con una conversazione lunga e' la differenza fra scorrere e arrancare */
+    content-visibility:auto; contain-intrinsic-size:auto 62px;
+  }
   .row.me{flex-direction:row-reverse}
   .av{width:28px;height:28px;border-radius:50%;flex:0 0 auto;object-fit:cover;background:var(--line)}
   .av.cl{display:flex;align-items:center;justify-content:center;font-size:14px;background:var(--claude-bg);border:1px solid var(--claude-line)}
@@ -111,6 +119,10 @@
   #cuore{
     position:fixed; inset:0; z-index:0; pointer-events:none;
     display:flex; align-items:center; justify-content:center;
+    /* Lo teniamo su un livello grafico suo: senza questo il telefono
+       ridisegna tutto il cuore a ogni frame mentre si scorre, e lo
+       scorrimento diventa legnoso. */
+    transform:translateZ(0); will-change:transform; contain:paint;
   }
   #cuore svg{width:min(92vw,440px); height:auto; opacity:.6; overflow:visible}
   #gruppo{transform-origin:50px 48px}
@@ -387,7 +399,7 @@
   }
 
   // ---------- render ----------
-  var renderToken=0;
+  var renderToken=0, ultimaFirma=null, nodoStreaming=null;
   function render(){
     var items=allItems(), token=++renderToken;
     controllaNuovi(items);
@@ -398,6 +410,14 @@
 
     var draw=function(){
       if(token!==renderToken) return;
+      // Se non e' cambiato niente non si ridisegna: rifare l'elenco mentre
+      // qualcuno sta scorrendo col dito e' proprio cio' che lo fa inceppare.
+      var firma = items.map(function(it){
+        return it.id+":"+((S.profiles[it.authorId]||{}).name||"");
+      }).join("|")+"#"+(S.streaming ? S.streaming.text.length : "-")+"#"+(nomeProprietario()||"");
+      if(firma===ultimaFirma && log.firstChild) return;
+      ultimaFirma=firma;
+
       var atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
       log.textContent="";
       if(!items.length && !S.streaming){
@@ -406,8 +426,14 @@
         log.appendChild(p);
       }
       items.forEach(function(it){ log.appendChild(bubble(it)); });
-      if(S.streaming) log.appendChild(bubble({kind:"claude", text:S.streaming.text||"", ts:Date.now(), live:true}));
-      if(atBottom || S.streaming) log.scrollTop = log.scrollHeight;
+      if(S.streaming){
+        nodoStreaming = bubble({kind:"claude", text:S.streaming.text||"", ts:Date.now(), live:true});
+        log.appendChild(nodoStreaming);
+      } else nodoStreaming=null;
+      // Si segue la conversazione solo se si era gia' in fondo: prima, mentre
+      // Claude rispondeva, ogni pezzo di risposta ti riportava in fondo a
+      // forza e non si riusciva piu' a leggere indietro.
+      if(atBottom) log.scrollTop = log.scrollHeight;
     };
 
     if(ids.length && S.user && S.user.profiles){
@@ -563,7 +589,18 @@
         "Se ti mancano informazioni per rispondere bene, dillo e chiedi il dato che manca.";
 
       return S.sample(prompt, {
-        onText: function(ev){ if(S.streaming){ S.streaming.text = ev.text; render(); } }
+        onText: function(ev){
+          if(!S.streaming) return;
+          S.streaming.text = ev.text;
+          // Rifare l'elenco intero a ogni parola che arriva inchioda la
+          // pagina: si riscrive solo la bolla che sta crescendo.
+          var tx = nodoStreaming && nodoStreaming.querySelector(".txt");
+          if(tx){
+            tx.className="txt";
+            tx.textContent=ev.text;
+            if(log.scrollHeight - log.scrollTop - log.clientHeight < 80) log.scrollTop=log.scrollHeight;
+          } else render();
+        }
       });
     }).then(function(res){
       S.streaming=null;
