@@ -227,7 +227,7 @@
   // restare uguali ai picchi dei keyframes "batti" nel CSS (6%, 31%, 56%,
   // 81% di 2s, piu' mezzo secondo di attesa perche' le meta' si riuniscano).
   var BATTITI = [0.62, 1.12, 1.62, 2.12];
-  var audio=null, rumore=null, suonoAcceso=true;
+  var audio=null, rumore=null, uscita=null, suonoAcceso=true;
 
   try{ suonoAcceso = localStorage.getItem("battito") !== "muto"; }catch(e){}
 
@@ -243,31 +243,56 @@
         rumore = audio.createBuffer(1, n, audio.sampleRate);
         var d = rumore.getChannelData(0), scorso=0;
         for(var i=0;i<n;i++){ var bianco=Math.random()*2-1; scorso=(scorso+0.02*bianco)/1.02; d[i]=scorso*3.2; }
+        // Uscita comune: un compressore tiene il battito forte senza farlo
+        // gracchiare quando i due tempi si sovrappongono.
+        uscita = audio.createGain();
+        uscita.gain.value = 1;
+        var comp = audio.createDynamicsCompressor();
+        comp.threshold.setValueAtTime(-14, audio.currentTime);
+        comp.ratio.setValueAtTime(6, audio.currentTime);
+        uscita.connect(comp); comp.connect(audio.destination);
       }
       if(audio.state==="suspended") audio.resume();
     }catch(e){ audio=null; }
   }
 
+  // Un battito e' fatto di tre cose sovrapposte. Le frequenze restano alte
+  // abbastanza da uscire davvero dall'altoparlante di un telefono, che sotto
+  // i 150-200 Hz non riproduce quasi nulla: la versione precedente scendeva a
+  // 32 Hz ed era corretta in teoria ma quasi muta in mano.
   function tonfo(quando, forza){
-    if(!audio) return;
+    if(!audio || !uscita) return;
     try{
+      // 1) il corpo del tonfo
       var o=audio.createOscillator(), g=audio.createGain();
       o.type="sine";
-      o.frequency.setValueAtTime(80, quando);
-      o.frequency.exponentialRampToValueAtTime(32, quando+0.16);
+      o.frequency.setValueAtTime(170, quando);
+      o.frequency.exponentialRampToValueAtTime(58, quando+0.15);
       g.gain.setValueAtTime(0.0001, quando);
-      g.gain.exponentialRampToValueAtTime(forza, quando+0.025);
-      g.gain.exponentialRampToValueAtTime(0.0001, quando+0.26);
-      o.connect(g); g.connect(audio.destination);
-      o.start(quando); o.stop(quando+0.3);
+      g.gain.exponentialRampToValueAtTime(forza, quando+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, quando+0.28);
+      o.connect(g); g.connect(uscita);
+      o.start(quando); o.stop(quando+0.32);
 
+      // 2) un'ottava sopra, piano: e' quella che il telefono riesce a far sentire
+      var o2=audio.createOscillator(), g2=audio.createGain();
+      o2.type="triangle";
+      o2.frequency.setValueAtTime(340, quando);
+      o2.frequency.exponentialRampToValueAtTime(116, quando+0.15);
+      g2.gain.setValueAtTime(0.0001, quando);
+      g2.gain.exponentialRampToValueAtTime(forza*0.35, quando+0.02);
+      g2.gain.exponentialRampToValueAtTime(0.0001, quando+0.2);
+      o2.connect(g2); g2.connect(uscita);
+      o2.start(quando); o2.stop(quando+0.25);
+
+      // 3) il fruscio dell'ecografia
       var f=audio.createBufferSource(), passa=audio.createBiquadFilter(), gf=audio.createGain();
-      f.buffer=rumore; passa.type="lowpass"; passa.frequency.setValueAtTime(300, quando);
+      f.buffer=rumore; passa.type="lowpass"; passa.frequency.setValueAtTime(800, quando);
       gf.gain.setValueAtTime(0.0001, quando);
-      gf.gain.exponentialRampToValueAtTime(forza*0.55, quando+0.03);
-      gf.gain.exponentialRampToValueAtTime(0.0001, quando+0.2);
-      f.connect(passa); passa.connect(gf); gf.connect(audio.destination);
-      f.start(quando); f.stop(quando+0.25);
+      gf.gain.exponentialRampToValueAtTime(forza*0.7, quando+0.03);
+      gf.gain.exponentialRampToValueAtTime(0.0001, quando+0.22);
+      f.connect(passa); passa.connect(gf); gf.connect(uscita);
+      f.start(quando); f.stop(quando+0.26);
     }catch(e){}
   }
 
@@ -276,8 +301,9 @@
   function programmaBattiti(){
     var ora=audio.currentTime;
     BATTITI.forEach(function(t){
-      tonfo(ora+t, 0.42);
-      tonfo(ora+t+0.17, 0.24);
+      // Misurato: oltre questi valori il battito comincia a gracchiare.
+      tonfo(ora+t, 1.3);
+      tonfo(ora+t+0.17, 0.85);
     });
   }
 

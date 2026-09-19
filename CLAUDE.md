@@ -250,9 +250,17 @@ un'altra.
 
 ### Suono del battito
 
-Generato dalla pagina con l'API audio del browser — un tonfo grave piu' un
-fruscio filtrato — perche' il progetto vieta di caricare file da domini esterni.
-Da sapere:
+Generato dalla pagina con l'API audio del browser — un tonfo, la sua ottava
+sopra e un fruscio filtrato — perche' il progetto vieta di caricare file da
+domini esterni. Da sapere:
+
+- **le frequenze non devono scendere sotto i 150 Hz**: l'altoparlante di un
+  telefono li' non riproduce quasi niente. La prima versione scendeva a 32 Hz
+  ed era giusta in teoria ma quasi muta in mano (l'utente ha segnalato "il
+  suono e' basso" a volume alzato). Misurando l'energia sopra i 150 Hz, il
+  rimedio vero e' stato alzare le frequenze, non il volume;
+- l'uscita passa da un compressore: oltre `1.3/0.85` di forza il battito
+  comincia a gracchiare, misurato contando i campioni tagliati;
 
 - l'array `BATTITI` in JavaScript e i picchi dei keyframes `batti` nel CSS
   descrivono gli stessi istanti: **se si cambia uno, va cambiato l'altro**,
