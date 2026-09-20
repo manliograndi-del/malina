@@ -111,6 +111,29 @@
     font-size:16px; line-height:1; opacity:.75;
   }
 
+  /* chiede il nome a chi la piattaforma non riconosce (invitata da fuori) */
+  .velo{
+    position:fixed; inset:0; z-index:3; display:flex; align-items:center;
+    justify-content:center; padding:24px; background:rgba(30,28,26,.45);
+  }
+  .velo[hidden]{display:none}
+  .scelta{
+    background:var(--panel); border:1px solid var(--line); border-radius:18px;
+    padding:20px; max-width:340px; width:100%;
+  }
+  .scelta h2{margin:0 0 8px; font-size:17px}
+  .scelta p{margin:0 0 14px; font-size:14px; color:var(--ink-soft)}
+  .scelta input{
+    font:inherit; width:100%; padding:10px 12px; margin-bottom:12px;
+    border:1px solid var(--line); border-radius:12px; background:var(--bg); color:var(--ink);
+  }
+  .scelta button{width:100%}
+  /* pallino con l'iniziale, per chi non ha una foto del profilo */
+  .av.ini{
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; font-weight:600; background:#f7d7d4; color:#8d3a34;
+  }
+
   /* riga sotto al nome di Claude: da chi risulta la richiesta */
   .perconto{font-weight:400; color:var(--ink-soft)}
 
@@ -168,6 +191,16 @@
   <button id="suono" type="button" title="Suono del battito">&#128266;</button>
 </header>
 
+<div id="nomeOspite" class="velo" hidden>
+  <div class="scelta">
+    <h2>Come ti chiami?</h2>
+    <p>Questa chat non riesce a leggere il tuo nome dal tuo account, perch&eacute; sei
+       stata invitata da fuori. Scrivilo tu: comparir&agrave; sopra ai tuoi messaggi.</p>
+    <input id="campoNome" type="text" maxlength="24" placeholder="Il tuo nome">
+    <button id="confermaNome" class="primary" type="button">Entra nella chat</button>
+  </div>
+</div>
+
 <div id="log"><p class="empty" id="empty">Caricamento…</p></div>
 
 <footer>
@@ -191,7 +224,7 @@
 
   var S = {
     db:null, user:null, sample:null,
-    uid:null, myName:"",
+    uid:null, myName:"", mioNome:"", ospite:false,
     proprietario:null,     // id di chi possiede la chat: a lui risultano le richieste a Claude
     remote:new Map(),      // docId -> {day, authorId, items}
     pending:[],            // miei item non ancora confermati dallo snapshot
@@ -212,7 +245,9 @@
       chipUltimo=document.getElementById("chip-ultimo"),
       chipScambi=document.getElementById("chip-scambi"),
       chipTutto=document.getElementById("chip-tutto"),
-      nientaltro=null;
+      veloNome=document.getElementById("nomeOspite"),
+      campoNome=document.getElementById("campoNome"),
+      confermaNome=document.getElementById("confermaNome");
 
   function today(){ return new Date().toISOString().slice(0,10); }
   function uid(){ return Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8); }
@@ -220,6 +255,46 @@
   function esc(t){ var n=document.createElement("div"); n.textContent=t; return n; }
   function showBanner(msg, bad){ banner.hidden=false; banner.textContent=msg; banner.classList.toggle("err", !!bad); }
   function puliscBanner(){ banner.hidden=true; banner.textContent=""; }
+
+  // ---------- identita' di chi e' invitato da fuori ----------
+  // La piattaforma da' un id solo alle persone dell'organizzazione del
+  // proprietario. Chi e' invitato via email da fuori PUO' SCRIVERE ma non ha
+  // id e non ha nome: senza un ripiego la pagina la bloccherebbe, ed e'
+  // esattamente il difetto che aveva. Quindi le diamo un'identita' locale,
+  // che resta su quel telefono, e il nome se lo scrive lei.
+  function idOspite(){
+    var v=null;
+    try{ v=localStorage.getItem("ospiteId"); }catch(e){}
+    if(!v){
+      v = "ospite-" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+      try{ localStorage.setItem("ospiteId", v); }catch(e){}
+    }
+    return v;
+  }
+  function nomeOspite(){
+    try{ return localStorage.getItem("ospiteNome")||""; }catch(e){ return ""; }
+  }
+  function salvaNomeOspite(n){
+    S.mioNome=n;
+    try{ localStorage.setItem("ospiteNome", n); }catch(e){}
+  }
+  function chiediNome(){
+    veloNome.hidden=false;
+    campoNome.value=S.mioNome||"";
+    setTimeout(function(){ campoNome.focus(); }, 50);
+  }
+  confermaNome.addEventListener("click", function(){
+    var n=(campoNome.value||"").trim();
+    if(!n) { campoNome.focus(); return; }
+    salvaNomeOspite(n);
+    veloNome.hidden=true;
+    who.textContent="Sei "+n;
+    render();
+    input.focus();
+  });
+  campoNome.addEventListener("keydown", function(e){
+    if(e.key==="Enter"){ e.preventDefault(); confermaNome.click(); }
+  });
 
   // ---------- chi possiede la chat ----------
   // Le richieste a Claude risultano sempre inviate da chi possiede la chat,
@@ -409,7 +484,7 @@
     var items=allItems(), token=++renderToken;
     controllaNuovi(items);
     var ids=[]; items.forEach(function(it){
-      if(it.authorId && ids.indexOf(it.authorId)<0) ids.push(it.authorId);
+      if(!it.nome && it.authorId && ids.indexOf(it.authorId)<0) ids.push(it.authorId);
     });
     if(S.proprietario && ids.indexOf(S.proprietario)<0) ids.push(S.proprietario);
 
@@ -454,16 +529,20 @@
 
     if(isClaude){
       var mark=document.createElement("div"); mark.className="av cl"; mark.textContent="✦"; row.appendChild(mark);
+    } else if(it.nome || !(S.profiles[it.authorId]||{}).avatarUrl){
+      var cer=document.createElement("div"); cer.className="av ini";
+      var n0 = it.nome || (S.profiles[it.authorId]||{}).name || "?";
+      cer.textContent=n0.slice(0,1).toUpperCase();
+      row.appendChild(cer);
     } else {
-      var p=S.profiles[it.authorId];
       var img=document.createElement("img"); img.className="av"; img.alt="";
-      if(p && p.avatarUrl) img.src=p.avatarUrl;
+      img.src=S.profiles[it.authorId].avatarUrl;
       row.appendChild(img);
     }
 
     var b=document.createElement("div"); b.className="bubble";
     var nm=document.createElement("span"); nm.className="name";
-    nm.textContent = isClaude ? "Claude" : ((S.profiles[it.authorId]||{}).name || "Qualcuno");
+    nm.textContent = isClaude ? "Claude" : (it.nome || (S.profiles[it.authorId]||{}).name || "Qualcuno");
     // Sotto al nome di Claude si legge da chi risulta la richiesta: e' sempre
     // chi possiede la chat, anche quando il pulsante l'ha premuto l'altra persona.
     if(isClaude && nomeProprietario()){
@@ -525,7 +604,7 @@
 
   function transcript(items){
     var righe = items.map(function(it){
-      var nm = it.kind==="claude" ? "Claude" : ((S.profiles[it.authorId]||{}).name || "Partecipante");
+      var nm = it.kind==="claude" ? "Claude" : (it.nome || (S.profiles[it.authorId]||{}).name || "Partecipante");
       var d = new Date(it.ts);
       var giorno = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
       return "["+giorno+" "+hhmm(it.ts)+"] "+nm+": "+(it.text||"");
@@ -566,7 +645,9 @@
     // trascrizione: senza questo passaggio, alla prima chiamata della sessione
     // Claude leggerebbe "Partecipante" per tutti e non distinguerebbe chi parla.
     var ids=[];
-    items.forEach(function(it){ if(it.authorId && ids.indexOf(it.authorId)<0) ids.push(it.authorId); });
+    items.forEach(function(it){
+      if(!it.nome && it.authorId && ids.indexOf(it.authorId)<0) ids.push(it.authorId);
+    });
     if(S.proprietario && ids.indexOf(S.proprietario)<0) ids.push(S.proprietario);
     var nomiPronti = (ids.length && S.user && S.user.profiles)
       ? Promise.resolve(S.user.profiles(ids)).then(function(ps){ if(ps) S.profiles=ps; }, function(){})
@@ -671,7 +752,7 @@
   }
 
   function nomeDi(msg){
-    return (S.profiles[msg.authorId]||{}).name || "l'altra persona";
+    return msg.nome || (S.profiles[msg.authorId]||{}).name || "l'altra persona";
   }
 
   function chiediUltimoMessaggio(){
@@ -736,11 +817,16 @@
   function submit(){
     var text=input.value.trim();
     if(!text || !S.db || !S.uid) return;
+    if(S.ospite && !S.mioNome){ chiediNome(); return; }
     puliscBanner();
     preparaAudio();
     input.value=""; autosize();
     var call = wantsClaude(text);
-    persist({id:uid(), ts:Date.now(), kind:"human", authorId:S.uid, text:text});
+    var msg = {id:uid(), ts:Date.now(), kind:"human", authorId:S.uid, text:text};
+    // Chi non ha un profilo leggibile porta il nome dentro al messaggio:
+    // e' l'unico modo perche' l'altra persona sappia chi ha scritto.
+    if(S.ospite && S.mioNome) msg.nome=S.mioNome;
+    persist(msg);
     if(call){
       if(S.sample) askClaude();
       else showBanner("Claude non è disponibile in questa vista, il messaggio resta comunque nella chat.", false);
@@ -781,9 +867,17 @@
         S.uid=me.id; S.myName=me.name||"";
         S.sonoProprietario = !!me.isOwner ||
           (S.user && typeof S.user.isOwner==="function" && S.user.isOwner()===true);
-        who.textContent = S.myName ? "Sei "+S.myName : "";
       }
-      if(!S.uid) showBanner("Non riesco a identificarti su questa pagina: accedi con il tuo account per scrivere.", true);
+      if(!S.uid){
+        // Invitata da fuori: la piattaforma non da' ne' id ne' nome, ma il
+        // permesso di scrivere c'e'. Ci si identifica da soli.
+        S.ospite=true;
+        S.uid=idOspite();
+        S.mioNome=nomeOspite();
+        if(!S.mioNome) chiediNome();
+      }
+      who.textContent = S.ospite ? (S.mioNome ? "Sei "+S.mioNome : "")
+                                 : (S.myName ? "Sei "+S.myName : "");
       return window.claude.use("db");
     }).then(function(db){
       S.db=db;

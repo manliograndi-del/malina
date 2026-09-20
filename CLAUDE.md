@@ -180,9 +180,36 @@ altrui vede tutto l'account, non solo questa pagina).
 - L'altra persona deve avere l'artifact condiviso con il livello **"può
   interagire"** / Editor o superiore. Con "può visualizzare" legge ma le
   scritture vengono rifiutate con `invalid_argument`.
-- Chi arriva da fuori organizzazione conta come sola lettura.
 - Quando una scrittura viene rifiutata, la pagina deve dirlo in chiaro e passare
   in sola lettura, non ritentare.
+
+### Chi e' invitato da fuori: SCRIVE, ma non ha ne' id ne' nome
+
+Errore che e' costato mezza giornata e ha bloccato la chat il giorno del primo
+accesso: si era dato per scontato che «chi arriva da fuori organizzazione conta
+come sola lettura». **E' falso.** Dalla documentazione del runtime:
+
+- `db.d.ts`: *«"Can edit", Editor e Manager hanno `admin`, come **un editor
+  invitato via email** (dove il menu lo offre), a meno che l'artifact sia
+  condiviso **anche per link**»* — quindi invitare per email come Editor da'
+  il permesso di scrivere, ma **condividere anche per link lo toglie**;
+- `user.d.ts`: *«un editor invitato da fuori dell'organizzazione **scrive** e
+  non ha id»* — e senza id anche `profiles()` non restituisce il suo nome.
+
+Conseguenze per il codice, da non rompere mai piu':
+
+- **non si subordina la scrittura all'avere un id.** Chi non e' identificato
+  riceve un'identita' locale (`ospite-...` in `localStorage`) usata come
+  `authorId` e nel nome del documento;
+- il nome se lo scrive da sola al primo ingresso e viaggia **dentro il
+  messaggio** (campo `nome`): e' l'unica eccezione ammessa alla regola "mai
+  nomi nel db", perche' nessuno puo' risolverlo per lei;
+- `can("data.write")` risolve `null` per questi visitatori: la documentazione
+  dice esplicitamente di **tenere i controlli attivi e lasciare che sia una
+  scrittura rifiutata a decidere**, mai spegnerli in anticipo;
+- `sample` risolve `null` per loro: **chi e' invitato da fuori non puo'
+  chiamare Claude**. Per dargli Claude serve il meccanismo a richieste
+  differite descritto sopra (il proprietario chiama Claude per conto suo).
 
 ### Le richieste a Claude risultano sempre del proprietario
 
