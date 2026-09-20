@@ -250,6 +250,13 @@ Conseguenze da conoscere:
 - la risposta arriva **solo quando la pagina del proprietario e' aperta**; fino
   ad allora, a chi ha chiesto compare l'avviso "risponde appena <nome> e'
   collegato";
+- **la sottoscrizione alle richieste parte prima che `sample` sia pronto.** Al
+  primo tentativo questo bastava a rompere tutto: le richieste gia' in attesa
+  all'apertura venivano esaminate quando Claude non era ancora disponibile, e
+  nessuno ci tornava piu' (l'utente l'ha visto come "il messaggio con @claude
+  appare e basta"). L'elenco va quindi **tenuto in memoria** e riesaminato
+  appena `sample` si risolve, e di nuovo dopo ogni risposta servita, perche' la
+  coda puo' contenerne piu' di una;
 - una richiesta piu' vecchia di tre ore viene cancellata senza servirla;
 - il proprietario scrive in `config/proprietario` anche il proprio **nome**
   (seconda eccezione ammessa alla regola "mai nomi nel db"): chi e' invitato da

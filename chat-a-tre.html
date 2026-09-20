@@ -250,6 +250,7 @@
     uid:null, myName:"", mioNome:"", ospite:false,
     proprietario:null,     // id di chi possiede la chat: a lui risultano le richieste a Claude
     nomeProprietario:"",   // il suo nome, per chi non puo' risolverlo da solo
+    richieste:[],          // richieste depositate da chi non puo' chiamare Claude
     remote:new Map(),      // docId -> {day, authorId, items}
     pending:[],            // miei item non ancora confermati dallo snapshot
     profiles:{},
@@ -821,6 +822,7 @@
     if(!lavoro) return;
 
     // la prendo in carico subito, cosi' un mio secondo telefono non la rifa'
+    lavoro.stato="in_corso";
     S.db.doc("richieste/"+lavoro.id).set({
       ts:lavoro.ts, autore:lavoro.autore, nome:lavoro.nome, testo:lavoro.testo, stato:"in_corso"
     }).catch(function(){});
@@ -828,7 +830,11 @@
     chiediAClaude(ultimi(allItems()),
       "L'ultimo messaggio ti ha chiamato con @claude: rispondi a quello, "+
       "ma tenendo presente tutto quello che le due persone si sono dette prima.",
-      function(){ S.db.doc("richieste/"+lavoro.id).delete().catch(function(){}); });
+      function(){
+        S.db.doc("richieste/"+lavoro.id).delete().catch(function(){});
+        // se ce n'erano altre in coda, si continua
+        setTimeout(function(){ servoRichieste(S.richieste||[]); }, 400);
+      });
   }
 
   // A chi ha chiesto, mostro che la richiesta e' in viaggio.
@@ -940,6 +946,7 @@
       db.collection("richieste").orderBy("ts","asc").limit(20).onSnapshot(function(snap){
         var elenco=[];
         snap.docs.forEach(function(d){ var v=d.data()||{}; v.id=d.id; elenco.push(v); });
+        S.richieste=elenco;
         servoRichieste(elenco);
         aggiornaAttesa(elenco);
       }, function(){});
@@ -959,6 +966,11 @@
       return window.claude.use("sample");
     }).then(function(sm){
       S.sample=sm;
+      // L'ascolto delle richieste parte prima che Claude sia pronto: le
+      // richieste gia' in attesa all'apertura venivano guardate quando non si
+      // poteva ancora rispondere, e nessuno ci ritornava piu'. Ora, appena
+      // Claude e' disponibile, si riguarda l'elenco.
+      servoRichieste(S.richieste||[]);
       aggiornaRigaSotto();
     }).catch(function(){
       showBanner("Inizializzazione non riuscita: ricarica la pagina.", true);
