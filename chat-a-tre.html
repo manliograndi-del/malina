@@ -11,17 +11,18 @@
     box-sizing:border-box;
     padding-top:env(safe-area-inset-top,0px);
     padding-bottom:env(safe-area-inset-bottom,0px);
-    --bg:#f7f6f3; --panel:#ffffff; --ink:#1d1c1a; --ink-soft:#6b6863;
-    --line:#e3e0da; --mine:#1f6feb; --mine-ink:#ffffff;
-    --claude-bg:#f3ecdf; --claude-line:#d9c9a8; --danger:#a13d2d;
+    /* carta calda e bordi tenui, come l'interfaccia di Claude */
+    --bg:#faf9f5; --panel:#ffffff; --ink:#191917; --ink-soft:#6f6d66;
+    --line:#e6e3d9; --mine:#1f6feb; --mine-ink:#ffffff;
+    --claude-bg:#f2ede2; --claude-line:#ddd3bf; --danger:#a13d2d;
     --cuore:#d81414;
     /* Bolle semitrasparenti: il cuore si vede attraverso i messaggi.
        Il blu e' un po' piu' scuro dell'originale perche' con la
        trasparenza il testo bianco sopra resti leggibile. */
-    --bolla:rgba(255,255,255,.62);
+    --bolla:rgba(255,255,255,.66);
     --bolla-mia:rgba(17,78,184,.84);
-    --bolla-claude:rgba(243,236,223,.6);
-    --radius:16px;
+    --bolla-claude:rgba(242,237,226,.66);
+    --radius:18px;
   }
   *,*::before,*::after{box-sizing:inherit}
   html,body{height:100%}
@@ -30,12 +31,6 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
     font-size:16px; line-height:1.45; display:flex; flex-direction:column;
   }
-  header{
-    padding:12px 16px; border-bottom:1px solid var(--line);
-    background:var(--panel); display:flex; align-items:baseline; gap:10px; flex:0 0 auto;
-  }
-  header h1{font-size:16px; margin:0; font-weight:600; letter-spacing:.01em}
-  header .who{font-size:13px; color:var(--ink-soft); margin-left:auto}
   #log{
     flex:1 1 auto; overflow-y:auto; padding:16px 12px 8px;
     -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
@@ -67,8 +62,9 @@
     padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
   }
   .bar{display:flex; gap:8px; align-items:flex-end}
+  .bar button{flex:0 0 auto}
   textarea{
-    flex:1 1 auto; resize:none; font:inherit; color:inherit; background:var(--bg);
+    flex:1 1 auto; min-width:0; resize:none; font:inherit; color:inherit; background:var(--bg);
     border:1px solid var(--line); border-radius:12px; padding:9px 11px; max-height:120px; min-height:42px;
   }
   textarea:focus{outline:2px solid var(--mine); outline-offset:-1px}
@@ -78,7 +74,8 @@
   }
   button.primary{background:var(--mine); color:var(--mine-ink); border-color:transparent; font-weight:600}
   button:disabled{opacity:.45; cursor:default}
-  .hint{font-size:12px; color:var(--ink-soft); margin:7px 2px 0}
+  .sotto{display:flex; align-items:center; gap:8px; margin:7px 2px 0}
+  .hint{font-size:12px; color:var(--ink-soft); margin:0; flex:1 1 auto}
   .hint b{font-weight:600; color:var(--ink)}
   .err{color:var(--danger)}
   /* Avvisi e rifiuti stanno in fondo, sopra ai pulsanti: e' li' che si
@@ -105,10 +102,10 @@
   }
   /* il tasto che scrive @claude nel messaggio: con la scritta, non con un simbolo */
   #mention{font-size:13px; font-weight:600; padding:9px 10px; color:var(--ink-soft)}
-  /* tasto per spegnere il suono del battito */
+  /* tasto per spegnere il suono del battito: piccolo, in fondo a destra */
   #suono{
-    border:none; background:none; padding:0 0 0 10px; min-height:0;
-    font-size:16px; line-height:1; opacity:.75;
+    border:none; background:none; padding:0 2px; min-height:0;
+    font-size:15px; line-height:1; opacity:.7; flex:0 0 auto;
   }
 
   /* chiede il nome a chi la piattaforma non riconosce (invitata da fuori) */
@@ -147,7 +144,10 @@
        scorrimento diventa legnoso. */
     transform:translateZ(0); will-change:transform; contain:paint;
   }
-  #cuore svg{width:min(92vw,440px); height:auto; opacity:.6; overflow:visible}
+  #cuore .grande{width:min(92vw,440px); height:auto; opacity:.6; overflow:visible}
+  /* i cuoricini stanno dietro al cuore grande, molto piu' chiari */
+  #cuore .filigrana{position:absolute; inset:0; width:100%; height:100%}
+  .cuoricini use{fill:none; stroke:var(--cuore); stroke-width:1.6; opacity:.1}
   #gruppo{transform-origin:50px 48px}
   .meta{
     fill:var(--cuore); transform-origin:50px 48px;
@@ -170,13 +170,57 @@
     #cuore.unito #gruppo{animation:none}
   }
   /* la chat sta sopra al cuore */
-  header,#banner,#log,footer{position:relative; z-index:1}
+  #banner,#log,footer{position:relative; z-index:1}
 </style>
 </head>
 <body>
 
 <div id="cuore" aria-hidden="true">
-  <svg viewBox="-8 -4 116 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- filigrana: contorni di cuoricini di misure diverse, appena accennati -->
+  <svg class="filigrana" viewBox="0 0 100 210" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <path id="cuoricino" d="M0 7 C0 3 3 0 6.5 0 C8.8 0 10.8 1.3 12 3.2 C13.2 1.3 15.2 0 17.5 0 C21 0 24 3 24 7 C24 13 17 18 12 22 C7 18 0 13 0 7 Z"/>
+    </defs>
+    <g class="cuoricini">
+      <use href="#cuoricino" transform="translate(8,11) rotate(-30) scale(0.4)"/>
+      <use href="#cuoricino" transform="translate(34,10) rotate(29) scale(0.25)"/>
+      <use href="#cuoricino" transform="translate(61,12) rotate(0) scale(0.42)"/>
+      <use href="#cuoricino" transform="translate(82,5) rotate(15) scale(0.29)"/>
+      <use href="#cuoricino" transform="translate(9,33) rotate(-26) scale(0.3)"/>
+      <use href="#cuoricino" transform="translate(37,35) rotate(-18) scale(0.34)"/>
+      <use href="#cuoricino" transform="translate(55,27) rotate(-13) scale(0.39)"/>
+      <use href="#cuoricino" transform="translate(86,30) rotate(-11) scale(0.28)"/>
+      <use href="#cuoricino" transform="translate(3,50) rotate(-4) scale(0.28)"/>
+      <use href="#cuoricino" transform="translate(35,59) rotate(-23) scale(0.38)"/>
+      <use href="#cuoricino" transform="translate(53,58) rotate(15) scale(0.23)"/>
+      <use href="#cuoricino" transform="translate(85,56) rotate(-27) scale(0.22)"/>
+      <use href="#cuoricino" transform="translate(11,81) rotate(1) scale(0.31)"/>
+      <use href="#cuoricino" transform="translate(37,74) rotate(5) scale(0.24)"/>
+      <use href="#cuoricino" transform="translate(62,72) rotate(2) scale(0.25)"/>
+      <use href="#cuoricino" transform="translate(87,73) rotate(16) scale(0.25)"/>
+      <use href="#cuoricino" transform="translate(1,95) rotate(-4) scale(0.38)"/>
+      <use href="#cuoricino" transform="translate(30,98) rotate(-23) scale(0.35)"/>
+      <use href="#cuoricino" transform="translate(62,95) rotate(-17) scale(0.29)"/>
+      <use href="#cuoricino" transform="translate(86,100) rotate(25) scale(0.2)"/>
+      <use href="#cuoricino" transform="translate(8,127) rotate(21) scale(0.43)"/>
+      <use href="#cuoricino" transform="translate(30,126) rotate(26) scale(0.34)"/>
+      <use href="#cuoricino" transform="translate(56,128) rotate(-19) scale(0.2)"/>
+      <use href="#cuoricino" transform="translate(83,125) rotate(24) scale(0.29)"/>
+      <use href="#cuoricino" transform="translate(1,151) rotate(6) scale(0.34)"/>
+      <use href="#cuoricino" transform="translate(28,148) rotate(-21) scale(0.22)"/>
+      <use href="#cuoricino" transform="translate(63,145) rotate(-14) scale(0.25)"/>
+      <use href="#cuoricino" transform="translate(85,149) rotate(9) scale(0.2)"/>
+      <use href="#cuoricino" transform="translate(2,168) rotate(-12) scale(0.28)"/>
+      <use href="#cuoricino" transform="translate(32,167) rotate(-26) scale(0.29)"/>
+      <use href="#cuoricino" transform="translate(61,168) rotate(7) scale(0.22)"/>
+      <use href="#cuoricino" transform="translate(79,165) rotate(-30) scale(0.35)"/>
+      <use href="#cuoricino" transform="translate(10,188) rotate(-7) scale(0.34)"/>
+      <use href="#cuoricino" transform="translate(33,188) rotate(-22) scale(0.35)"/>
+      <use href="#cuoricino" transform="translate(57,193) rotate(0) scale(0.43)"/>
+      <use href="#cuoricino" transform="translate(80,187) rotate(-22) scale(0.4)"/>
+    </g>
+  </svg>
+  <svg class="grande" viewBox="-8 -4 116 100" xmlns="http://www.w3.org/2000/svg">
     <g id="gruppo">
       <!-- le due meta' condividono la stessa linea di frattura, cosi' combaciano -->
       <path class="meta sx" d="M50 20 C46 9 37 2 27 2 C7 2 -5 26 10 45 L50 88 L44 70 L55 57 L43 43 L53 30 Z"/>
@@ -184,12 +228,6 @@
     </g>
   </svg>
 </div>
-
-<header>
-  <h1>Chat</h1>
-  <span class="who" id="who"></span>
-  <button id="suono" type="button" title="Suono del battito">&#128266;</button>
-</header>
 
 <div id="nomeOspite" class="velo" hidden>
   <div class="scelta">
@@ -215,7 +253,10 @@
     <textarea id="input" rows="1" placeholder="Scrivi un messaggio…" disabled></textarea>
     <button id="send" class="primary" type="button" disabled>Invia</button>
   </div>
-  <p class="hint" id="hint">I tre pulsanti qui sopra chiedono un parere a Claude. Oppure scrivi <b>@claude</b> dentro un messaggio.</p>
+  <div class="sotto">
+    <p class="hint" id="hint"></p>
+    <button id="suono" type="button" title="Suono del battito">&#128266;</button>
+  </div>
 </footer>
 
 <script>
@@ -239,7 +280,7 @@
   var log=document.getElementById("log"), empty=document.getElementById("empty"),
       input=document.getElementById("input"), send=document.getElementById("send"),
       mention=document.getElementById("mention"), hint=document.getElementById("hint"),
-      who=document.getElementById("who"), banner=document.getElementById("banner"),
+      banner=document.getElementById("banner"),
       cuore=document.getElementById("cuore"),
       tastoSuono=document.getElementById("suono"),
       chipUltimo=document.getElementById("chip-ultimo"),
@@ -255,6 +296,31 @@
   function esc(t){ var n=document.createElement("div"); n.textContent=t; return n; }
   function showBanner(msg, bad){ banner.hidden=false; banner.textContent=msg; banner.classList.toggle("err", !!bad); }
   function puliscBanner(){ banner.hidden=true; banner.textContent=""; }
+
+  // Una sola riga sotto la casella, corta. Chi si e' scritto il nome da solo
+  // lo vede li' e lo puo' cambiare: e' l'unico posto rimasto, ora che
+  // l'intestazione non c'e' piu'.
+  function aggiornaRigaSotto(){
+    hint.textContent="";
+    if(!S.sample){
+      hint.textContent = "Claude non è disponibile in questa vista: la chat resta a due.";
+      return;
+    }
+    if(S.ospite && S.mioNome){
+      var b=document.createElement("b");
+      b.textContent=S.mioNome;
+      b.style.cursor="pointer";
+      b.addEventListener("click", chiediNome);
+      hint.appendChild(document.createTextNode("Sei "));
+      hint.appendChild(b);
+      hint.appendChild(document.createTextNode(" · scrivi @claude per chiamarlo"));
+    } else {
+      hint.appendChild(document.createTextNode("Scrivi "));
+      var c=document.createElement("b"); c.textContent="@claude";
+      hint.appendChild(c);
+      hint.appendChild(document.createTextNode(" nel messaggio per farlo intervenire"));
+    }
+  }
 
   // ---------- identita' di chi e' invitato da fuori ----------
   // La piattaforma da' un id solo alle persone dell'organizzazione del
@@ -288,7 +354,7 @@
     if(!n) { campoNome.focus(); return; }
     salvaNomeOspite(n);
     veloNome.hidden=true;
-    who.textContent="Sei "+n;
+    aggiornaRigaSotto();
     render();
     input.focus();
   });
@@ -876,8 +942,7 @@
         S.mioNome=nomeOspite();
         if(!S.mioNome) chiediNome();
       }
-      who.textContent = S.ospite ? (S.mioNome ? "Sei "+S.mioNome : "")
-                                 : (S.myName ? "Sei "+S.myName : "");
+      aggiornaRigaSotto();
       return window.claude.use("db");
     }).then(function(db){
       S.db=db;
@@ -913,7 +978,7 @@
     }).then(function(sm){
       S.sample=sm;
       abilitaComandi(!S.busy);
-      if(!sm){ hint.textContent="Claude non è disponibile in questa vista: la chat resta a due."; }
+      aggiornaRigaSotto();
     }).catch(function(){
       showBanner("Inizializzazione non riuscita: ricarica la pagina.", true);
     });
