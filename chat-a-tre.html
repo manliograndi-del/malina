@@ -249,6 +249,7 @@
     db:null, user:null, sample:null,
     uid:null, myName:"", mioNome:"", ospite:false,
     proprietario:null,     // id di chi possiede la chat: a lui risultano le richieste a Claude
+    nomeProprietario:"",   // il suo nome, per chi non puo' risolverlo da solo
     remote:new Map(),      // docId -> {day, authorId, items}
     pending:[],            // miei item non ancora confermati dallo snapshot
     profiles:{},
@@ -281,10 +282,6 @@
   // l'intestazione non c'e' piu'.
   function aggiornaRigaSotto(){
     hint.textContent="";
-    if(!S.sample){
-      hint.textContent = "Claude non è disponibile in questa vista: la chat resta a due.";
-      return;
-    }
     if(S.ospite && S.mioNome){
       var b=document.createElement("b");
       b.textContent=S.mioNome;
@@ -292,7 +289,8 @@
       b.addEventListener("click", chiediNome);
       hint.appendChild(document.createTextNode("Sei "));
       hint.appendChild(b);
-      hint.appendChild(document.createTextNode(" · scrivi @claude per chiamarlo"));
+      hint.appendChild(document.createTextNode(S.sample ? " · scrivi @claude per chiamarlo"
+        : " · scrivi @claude: risponde quando "+(nomeProprietario()||"l'altro")+" è collegato"));
     } else {
       hint.appendChild(document.createTextNode("Scrivi "));
       var c=document.createElement("b"); c.textContent="@claude";
@@ -347,8 +345,8 @@
   // dell'utente. Serve saperne l'id da qualunque telefono, quindi il
   // proprietario lo scrive una volta sola nell'archivio.
   function nomeProprietario(){
-    if(!S.proprietario) return "";
-    return (S.profiles[S.proprietario]||{}).name || "";
+    if(!S.proprietario) return S.nomeProprietario||"";
+    return (S.profiles[S.proprietario]||{}).name || S.nomeProprietario || "";
   }
 
   // ---------- suono del battito ----------
@@ -524,7 +522,16 @@
   }
 
   // ---------- render ----------
-  var renderToken=0, ultimaFirma=null, nodoStreaming=null;
+  var renderToken=0, ultimaFirma=null, nodoStreaming=null, primaVista=true;
+
+  // Portare in fondo non e' immediato: le righe fuori schermo non sono ancora
+  // disegnate e l'altezza vera si sa solo dopo. Percio' si insiste per tre
+  // volte, altrimenti all'apertura la chat resta a meta'.
+  function vaInFondo(){
+    log.scrollTop = log.scrollHeight;
+    requestAnimationFrame(function(){ log.scrollTop = log.scrollHeight; });
+    setTimeout(function(){ log.scrollTop = log.scrollHeight; }, 180);
+  }
   function render(){
     var items=allItems(), token=++renderToken;
     controllaNuovi(items);
@@ -558,7 +565,10 @@
       // Si segue la conversazione solo se si era gia' in fondo: prima, mentre
       // Claude rispondeva, ogni pezzo di risposta ti riportava in fondo a
       // forza e non si riusciva piu' a leggere indietro.
-      if(atBottom) log.scrollTop = log.scrollHeight;
+      // All'apertura si parte SEMPRE dagli ultimi messaggi; dopo, si segue
+      // il fondo solo se ci si era gia'.
+      if(primaVista && items.length){ primaVista=false; vaInFondo(); }
+      else if(atBottom) vaInFondo();
     };
 
     if(ids.length && S.user && S.user.profiles){
@@ -677,7 +687,7 @@
   // "compito" puo' essere una funzione, cosi' la frase si compone quando i
   // nomi delle persone sono gia' stati risolti.
   var attesaMassima=null;
-  function chiediAClaude(items, compito){
+  function chiediAClaude(items, compito, poi){
     if(!S.sample || !items.length) return;
     if(S.busy){ showBanner("Claude sta gia' rispondendo: aspetta un momento.", false); return; }
     S.busy=true;
@@ -757,6 +767,7 @@
     }).then(function(){
       clearTimeout(attesaMassima);
       S.busy=false; input.focus();
+      if(typeof poi==="function") poi();
     });
   }
 
@@ -769,6 +780,71 @@
     chiediAClaude(ultimi(allItems()),
       "L'ultimo messaggio ti ha chiamato con @claude: rispondi a quello, "+
       "ma tenendo presente tutto quello che le due persone si sono dette prima.");
+  }
+
+  // ---------- chiedere Claude per interposta persona ----------
+  // Chi e' invitato da fuori non puo' chiamare Claude: la piattaforma non
+  // glielo concede, e non e' aggirabile. Allora la sua pagina non lo chiama:
+  // deposita una richiesta qui. La pagina del proprietario, che Claude ce
+  // l'ha, la raccoglie e risponde con il proprio account. Risultato: la
+  // richiesta e' davvero sua, e la risposta arriva appena lui e' collegato.
+  var VECCHIA = 3*60*60*1000;      // dopo tre ore una richiesta non si serve piu'
+
+  function creaRichiesta(testo){
+    if(!S.db || !S.uid) return;
+    var id = uid();
+    S.db.doc("richieste/"+id).set({
+      ts:Date.now(), autore:S.uid, nome:S.mioNome||"", testo:(testo||"").slice(0,500), stato:"in_attesa"
+    }).then(function(){
+      showBanner("Ho girato la richiesta: Claude risponde appena "+
+                 (nomeProprietario()||"l'altra persona")+" è collegato.", false);
+    }, function(){
+      showBanner("Non sono riuscito a inoltrare la richiesta a Claude.", true);
+    });
+  }
+
+  // Solo il proprietario serve le richieste, e solo se ha Claude disponibile.
+  function servoRichieste(elenco){
+    if(!S.sample || !S.db || S.busy) return;
+    var sonoIo = S.proprietario ? (S.uid===S.proprietario) : !!S.sonoProprietario;
+    if(!sonoIo) return;
+
+    var lavoro=null;
+    elenco.forEach(function(r){
+      if(lavoro || r.stato!=="in_attesa") return;
+      if(Date.now()-(r.ts||0) > VECCHIA){
+        S.db.doc("richieste/"+r.id).delete().catch(function(){});
+        return;
+      }
+      lavoro=r;
+    });
+    if(!lavoro) return;
+
+    // la prendo in carico subito, cosi' un mio secondo telefono non la rifa'
+    S.db.doc("richieste/"+lavoro.id).set({
+      ts:lavoro.ts, autore:lavoro.autore, nome:lavoro.nome, testo:lavoro.testo, stato:"in_corso"
+    }).catch(function(){});
+
+    chiediAClaude(ultimi(allItems()),
+      "L'ultimo messaggio ti ha chiamato con @claude: rispondi a quello, "+
+      "ma tenendo presente tutto quello che le due persone si sono dette prima.",
+      function(){ S.db.doc("richieste/"+lavoro.id).delete().catch(function(){}); });
+  }
+
+  // A chi ha chiesto, mostro che la richiesta e' in viaggio.
+  var attesaMostrata=false;
+  function aggiornaAttesa(elenco){
+    if(S.sample) return;                       // il proprietario non aspetta nessuno
+    var mia=false;
+    elenco.forEach(function(r){ if(r.autore===S.uid) mia=true; });
+    if(mia && !attesaMostrata){
+      attesaMostrata=true;
+      showBanner("Claude è stato chiamato: risponde appena "+
+                 (nomeProprietario()||"l'altra persona")+" è collegato.", false);
+    } else if(!mia && attesaMostrata){
+      attesaMostrata=false;
+      puliscBanner();
+    }
   }
 
   // ---------- invio ----------
@@ -787,7 +863,7 @@
     persist(msg);
     if(call){
       if(S.sample) askClaude();
-      else showBanner("Claude non è disponibile in questa vista, il messaggio resta comunque nella chat.", false);
+      else creaRichiesta(text);     // la servira' la pagina del proprietario
     }
   }
 
@@ -848,12 +924,26 @@
       // cosi' anche l'altro telefono sa a chi intestare le richieste a Claude.
       db.doc("config/proprietario").get().then(function(d){
         var v = d && d.exists ? (d.data()||{}) : {};
-        if(v.id){ S.proprietario=v.id; render(); }
-        else if(S.sonoProprietario && S.uid){
-          S.proprietario=S.uid;
-          return db.doc("config/proprietario").set({id:S.uid});
+        if(v.id){
+          S.proprietario=v.id;
+          S.nomeProprietario=v.nome||"";
+          render(); aggiornaRigaSotto();
+        }
+        // Il proprietario lascia scritto anche il proprio nome: chi e'
+        // invitato da fuori non puo' risolverlo in nessun altro modo, e
+        // senza si legge "l'altra persona" al posto del nome.
+        if(S.sonoProprietario && S.uid && (v.id!==S.uid || v.nome!==(S.myName||""))){
+          S.proprietario=S.uid; S.nomeProprietario=S.myName||"";
+          return db.doc("config/proprietario").set({id:S.uid, nome:S.myName||""});
         }
       }).catch(function(){});
+      db.collection("richieste").orderBy("ts","asc").limit(20).onSnapshot(function(snap){
+        var elenco=[];
+        snap.docs.forEach(function(d){ var v=d.data()||{}; v.id=d.id; elenco.push(v); });
+        servoRichieste(elenco);
+        aggiornaAttesa(elenco);
+      }, function(){});
+
       db.collection("messages").orderBy("day","desc").limit(40).onSnapshot(function(snap){
         S.remote=new Map();
         snap.docs.forEach(function(d){ var v=d.data()||{}; S.remote.set(d.id,{day:v.day,authorId:v.authorId,items:v.items||[]}); });

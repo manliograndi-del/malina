@@ -230,14 +230,30 @@ sempre inviata da me, a prescindere da chi la fa»*. Quindi:
 sempre chi sta guardando la pagina in quel momento, con il proprio account.
 L'intestazione della richiesta e' una cosa, il conto e' un'altra.
 
-**Decisione presa (non rimetterla in discussione da soli).** Esiste un modo per
-far pagare davvero al proprietario anche le richieste dell'altra persona: il suo
-pulsante non chiama Claude ma deposita una richiesta in `db`; la pagina del
-proprietario la vede, chiama `sample` con il proprio account e scrive la
-risposta. Funziona, ma le risposte arrivano solo **quando la pagina del
-proprietario e' aperta**. L'utente lo sa, e ha scelto di **non** farlo per ora:
-va bene che l'altra persona usi il proprio account. Da costruire solo se lo
-chiede.
+### Chiedere Claude per interposta persona (costruito)
+
+Chi e' invitato da fuori non puo' chiamare Claude: `sample` gli risolve `null`.
+Percio' la sua pagina **non lo chiama**, deposita una richiesta:
+
+```
+richieste/<id>  ->  { ts, autore, nome, testo, stato: "in_attesa" | "in_corso" }
+```
+
+La pagina del **proprietario** e' sottoscritta a quella collezione: quando vede
+una richiesta in attesa la prende in carico (`stato: "in_corso"`, cosi' un suo
+secondo telefono non la rifa'), chiama `sample` **con il proprio account**,
+scrive la risposta come un normale messaggio di Claude e **cancella** la
+richiesta.
+
+Conseguenze da conoscere:
+
+- la risposta arriva **solo quando la pagina del proprietario e' aperta**; fino
+  ad allora, a chi ha chiesto compare l'avviso "risponde appena <nome> e'
+  collegato";
+- una richiesta piu' vecchia di tre ore viene cancellata senza servirla;
+- il proprietario scrive in `config/proprietario` anche il proprio **nome**
+  (seconda eccezione ammessa alla regola "mai nomi nel db"): chi e' invitato da
+  fuori non puo' risolverlo con `profiles()` e leggerebbe "l'altra persona".
 
 **L'altra persona deve avere un account Claude**: senza, le sue scritture
 vengono rifiutate e la chat sarebbe muta da parte sua. E' gratuito e non e' un
