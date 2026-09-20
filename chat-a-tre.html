@@ -85,21 +85,6 @@
     border-radius:12px; background:var(--bg); font-size:14px; color:var(--ink-soft);
   }
 
-  /* Le tre scorciatoie per chiedere un parere a Claude: una riga sola,
-     ben visibili, ognuna larga quanto le serve. */
-  .scorciatoie{display:flex; gap:6px; flex-wrap:nowrap; margin:0 0 8px}
-  .chip{
-    font:inherit; font-size:14px; font-weight:600; line-height:1.2;
-    padding:10px 8px; min-height:40px; flex:1 1 auto; min-width:0;
-    white-space:nowrap; text-align:center;
-    border:1px solid var(--claude-line); background:var(--claude-bg);
-    color:var(--ink); border-radius:12px; cursor:pointer;
-  }
-  .chip:disabled{opacity:.4; cursor:default}
-  /* sui telefoni piu' stretti le tre scritte non ci stanno a questa misura */
-  @media (max-width: 365px){
-    .chip{font-size:13px; padding:10px 5px}
-  }
   /* il tasto che scrive @claude nel messaggio: con la scritta, non con un simbolo */
   #mention{font-size:13px; font-weight:600; padding:9px 10px; color:var(--ink-soft)}
   /* tasto per spegnere il suono del battito: piccolo, in fondo a destra */
@@ -128,8 +113,10 @@
   /* pallino con l'iniziale, per chi non ha una foto del profilo */
   .av.ini{
     display:flex; align-items:center; justify-content:center;
-    font-size:13px; font-weight:600; background:#f7d7d4; color:#8d3a34;
+    font-size:13px; font-weight:700; background:#f7d7d4; color:#8d3a34;
   }
+  /* il proprio pallino: verde smeraldo con l'iniziale bianca */
+  .av.ini.mio{background:#0b8a5e; color:#fff}
 
   /* riga sotto al nome di Claude: da chi risulta la richiesta */
   .perconto{font-weight:400; color:var(--ink-soft)}
@@ -243,11 +230,6 @@
 
 <footer>
   <div id="banner" class="banner" hidden></div>
-  <div class="scorciatoie">
-    <button class="chip" id="chip-ultimo" type="button" disabled>Ultimo</button>
-    <button class="chip" id="chip-scambi" type="button" disabled>Ultimi tre scambi</button>
-    <button class="chip" id="chip-tutto" type="button" disabled>Conversazione</button>
-  </div>
   <div class="bar">
     <button id="mention" type="button" title="Scrive @claude all'inizio del messaggio">@claude</button>
     <textarea id="input" rows="1" placeholder="Scrivi un messaggio…" disabled></textarea>
@@ -283,9 +265,6 @@
       banner=document.getElementById("banner"),
       cuore=document.getElementById("cuore"),
       tastoSuono=document.getElementById("suono"),
-      chipUltimo=document.getElementById("chip-ultimo"),
-      chipScambi=document.getElementById("chip-scambi"),
-      chipTutto=document.getElementById("chip-tutto"),
       veloNome=document.getElementById("nomeOspite"),
       campoNome=document.getElementById("campoNome"),
       confermaNome=document.getElementById("confermaNome");
@@ -595,6 +574,13 @@
 
     if(isClaude){
       var mark=document.createElement("div"); mark.className="av cl"; mark.textContent="✦"; row.appendChild(mark);
+    } else if(mine){
+      // Il proprio pallino non usa la foto dell'account: verde smeraldo con
+      // la propria iniziale, per scelta dell'utente.
+      var mio=document.createElement("div"); mio.className="av ini mio";
+      var nm0 = it.nome || S.mioNome || S.myName || (S.profiles[it.authorId]||{}).name || "?";
+      mio.textContent=nm0.slice(0,1).toUpperCase();
+      row.appendChild(mio);
     } else if(it.nome || !(S.profiles[it.authorId]||{}).avatarUrl){
       var cer=document.createElement("div"); cer.className="av ini";
       var n0 = it.nome || (S.profiles[it.authorId]||{}).name || "?";
@@ -694,7 +680,7 @@
   function chiediAClaude(items, compito){
     if(!S.sample || !items.length) return;
     if(S.busy){ showBanner("Claude sta gia' rispondendo: aspetta un momento.", false); return; }
-    S.busy=true; abilitaComandi(false);
+    S.busy=true;
     S.streaming={text:""}; render();
 
     // Se la risposta non arriva mai (consenso rimasto in sospeso, rete che
@@ -702,7 +688,7 @@
     clearTimeout(attesaMassima);
     attesaMassima=setTimeout(function(){
       if(!S.busy) return;
-      S.busy=false; S.streaming=null; abilitaComandi(true);
+      S.busy=false; S.streaming=null;
       showBanner("Claude non ha risposto in tempo. Puoi riprovare.", true);
       render();
     }, 90000);
@@ -770,7 +756,7 @@
       render();
     }).then(function(){
       clearTimeout(attesaMassima);
-      S.busy=false; abilitaComandi(true); input.focus();
+      S.busy=false; input.focus();
     });
   }
 
@@ -778,106 +764,12 @@
   // farebbero partire una seconda domanda: scrivere e inviare un messaggio
   // dev'essere sempre possibile, anche durante l'attesa (che puo' durare
   // un minuto). Spegnere "Invia" faceva sembrare la pagina bloccata.
-  function abilitaComandi(si){
-    chipUltimo.disabled = !si || !S.sample;
-    chipScambi.disabled = !si || !S.sample;
-    chipTutto.disabled  = !si || !S.sample;
-  }
-
   // Chiamata scrivendo @claude dentro un messaggio.
   function askClaude(){
     chiediAClaude(ultimi(allItems()),
       "L'ultimo messaggio ti ha chiamato con @claude: rispondi a quello, "+
       "ma tenendo presente tutto quello che le due persone si sono dette prima.");
   }
-
-  // ---------- scambi ----------
-  // Uno "scambio" e' tutto quello che una persona scrive di fila prima che
-  // l'altra risponda: tre messaggi di seguito della stessa persona valgono
-  // un solo scambio. Le risposte di Claude non contano come scambio.
-  function scambi(items){
-    var out=[];
-    items.forEach(function(it){
-      if(it.kind!=="human") return;
-      var ultimo=out[out.length-1];
-      if(ultimo && ultimo.authorId===it.authorId) ultimo.items.push(it);
-      else out.push({authorId:it.authorId, items:[it]});
-    });
-    return out;
-  }
-
-  // "L'altro" e' l'altra persona rispetto a chi possiede la chat: la domanda
-  // risulta sempre sua, quindi il punto di vista e' sempre il suo, anche se a
-  // premere il pulsante e' stata l'altra.
-  function ultimoDellAltro(items){
-    var riferimento = S.proprietario || S.uid;
-    for(var i=items.length-1;i>=0;i--){
-      if(items[i].kind==="human" && items[i].authorId!==riferimento) return items[i];
-    }
-    return null;
-  }
-
-  function nomeDi(msg){
-    return msg.nome || (S.profiles[msg.authorId]||{}).name || "l'altra persona";
-  }
-
-  function chiediUltimoMessaggio(){
-    var tutti=allItems(), msg=ultimoDellAltro(tutti);
-    if(!msg){
-      showBanner("Ancora nessun messaggio dell'altra persona da commentare: appena scrive, questo pulsante funziona.", false);
-      return;
-    }
-    // Gli do il contesto recente, ma gli chiedo di commentare quel messaggio li'.
-    chiediAClaude(ultimi(tutti), function(){
-      return "Ti e' stato chiesto con un pulsante "+
-             "che cosa pensi dell'ultimo messaggio scritto da "+nomeDi(msg)+", "+
-             "quello delle "+hhmm(msg.ts)+" che dice: \u00ab"+(msg.text||"")+"\u00bb.\n"+
-             "Commenta quel messaggio: come lo leggi, che cosa ne pensi, e se puo' servire "+
-             "che cosa suggeriresti di rispondere. Il resto della trascrizione e' solo contesto.";
-    });
-  }
-
-  function chiediUltimiScambi(){
-    var tutti=allItems(), tutti_scambi=scambi(tutti);
-    if(!tutti_scambi.length){
-      showBanner("La chat e' ancora vuota: scrivete qualcosa e poi riprova.", false);
-      return;
-    }
-    var ultimiTre = tutti_scambi.slice(-3);
-    var da = ultimiTre[0].items[0].ts || 0;
-    var finestra = tutti.filter(function(it){ return (it.ts||0) >= da; });
-    if(finestra.length > MEMORIA_MSG) finestra = finestra.slice(-MEMORIA_MSG);
-    chiediAClaude(finestra, function(){
-      var quanti = ultimiTre.length;
-      return "Ti e' stato chiesto con un pulsante "+
-             "che cosa pensi degli ultimi "+quanti+" scambi della conversazione"+
-             (quanti<3 ? " (sono tutti quelli che ci sono finora)" : "")+".\n"+
-             "Uno scambio e' tutto quello che una persona ha scritto di fila prima che "+
-             "rispondesse l'altra. Sono gli ultimi della trascrizione, a partire dalle "+
-             hhmm(da)+".\n"+
-             "Di' come sta andando fra loro in questi scambi: che cosa si stanno dicendo "+
-             "davvero, se si stanno capendo, e che cosa noti.";
-    });
-  }
-
-  // Tutta la conversazione che la pagina riesce a tenere sott'occhio.
-  function chiediTuttaLaConversazione(){
-    var tutti=allItems();
-    if(!tutti.length){
-      showBanner("La chat e' ancora vuota: scrivete qualcosa e poi riprova.", false);
-      return;
-    }
-    chiediAClaude(ultimi(tutti), function(){
-      return "Ti e' stato chiesto con un pulsante che cosa pensi della conversazione "+
-             "nel suo insieme, non di un singolo messaggio ne' degli ultimi scambi.\n"+
-             "Guarda tutta la trascrizione: come procede fra queste due persone, di che "+
-             "cosa parlano davvero, che cosa noti nel modo in cui si parlano.";
-    });
-  }
-
-  chipUltimo.addEventListener("click", function(){ puliscBanner(); preparaAudio(); chiediUltimoMessaggio(); });
-  chipScambi.addEventListener("click", function(){ puliscBanner(); preparaAudio(); chiediUltimiScambi(); });
-  chipTutto.addEventListener("click", function(){ puliscBanner(); preparaAudio(); chiediTuttaLaConversazione(); });
 
   // ---------- invio ----------
   function submit(){
@@ -950,7 +842,7 @@
         empty.textContent="La chat condivisa non è disponibile in questa vista.";
         return;
       }
-      input.disabled=false; send.disabled=false; abilitaComandi(true); autosize();
+      input.disabled=false; send.disabled=false; autosize();
 
       // Chi possiede la chat lascia scritto il proprio id, una volta sola:
       // cosi' anche l'altro telefono sa a chi intestare le richieste a Claude.
@@ -977,7 +869,6 @@
       return window.claude.use("sample");
     }).then(function(sm){
       S.sample=sm;
-      abilitaComandi(!S.busy);
       aggiornaRigaSotto();
     }).catch(function(){
       showBanner("Inizializzazione non riuscita: ricarica la pagina.", true);

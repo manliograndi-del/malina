@@ -341,22 +341,26 @@ esterni. Da sapere:
 - c'e' un tasto in alto per silenziare; la scelta sta in `localStorage`, che qui
   e' lecito perche' e' una preferenza del singolo, non un messaggio.
 
-### Pulsanti per chiedere un parere
+### Un solo modo di chiamare Claude: `@claude`
 
-Oltre a `@claude` scritto nel messaggio, tre pulsanti su una sola riga chiedono
-a Claude un parere — **Ultimo** (l'ultimo messaggio dell'altra persona),
-**Ultimi tre scambi**, **Conversazione** (tutta quella che la pagina tiene
-sott'occhio). Il tasto accanto alla casella porta scritto `@claude` e lo
-inserisce all'inizio del messaggio: prima era un simbolo e non si capiva ne'
-a cosa servisse ne' se avesse fatto qualcosa.
+I tre pulsanti che chiedevano un parere (Ultimo / Ultimi tre scambi /
+Conversazione) sono stati **rimossi su richiesta dell'utente**: "basta quello
+che fa scrivere @claude". Con loro se ne sono andate le funzioni relative e la
+nozione di "scambio". Tutto e' nella storia di git (commit precedenti a questo)
+se un giorno le rivorra'.
 
-Quando un pulsante non ha nulla da commentare lo dice **in fondo, sopra ai
-pulsanti stessi**: l'avviso in cima alla pagina non si vedeva e i pulsanti
-sembravano rotti.
-Uno scambio e' tutto quello che una persona scrive di fila prima che risponda
-l'altra: tre messaggi consecutivi della stessa persona sono un solo scambio, e
-le risposte di Claude non contano. Tutte le strade passano da `chiediAClaude()`:
-cambia solo il compito e la fetta di conversazione, mai il modo di chiamare.
+Resta il tasto accanto alla casella, con scritto `@claude`, che inserisce la
+parola all'inizio del messaggio.
+
+### L'interfaccia e' scarna per scelta
+
+L'utente ha chiesto di togliere tutto quello che non serve a due persone che si
+conoscono: niente intestazione, niente nomi ripetuti, niente pulsanti. Prima di
+aggiungere un elemento all'interfaccia, chiederglielo.
+
+Il proprio pallino accanto ai propri messaggi e' **verde smeraldo con la
+propria iniziale**, non la foto dell'account: scelta sua, esplicita.
+
 - Testo inserito dalle persone sempre con `textContent`, mai `innerHTML`.
 - L'utente non programma: commenti in italiano, spiegazioni in linguaggio
   naturale, e quando proponi una modifica dì prima **cosa cambia per chi usa la
