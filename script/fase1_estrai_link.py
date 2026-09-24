@@ -30,6 +30,25 @@ def dividi_luogo(luogo):
     return (m.group(1).strip(), m.group(2)) if m else (luogo or "", "")
 
 
+def pulisci_url(u):
+    """Corregge gli errori di battitura evidenti nel link della scheda.
+    Restituisce (link_pulito, altri_link, descrizione_del_problema)."""
+    orig = (u or "").strip()
+    s = re.sub(r"(%20)+", " ", orig.split("#", 1)[0]).strip()  # la parte dopo '#' non conta
+    orig = orig.split("#", 1)[0]
+    problemi = []
+    parti = [x for x in re.split(r"\s*\|\s*|\s+", s) if x]
+    if len(parti) > 1:
+        problemi.append("piu' indirizzi nello stesso campo")
+    s = parti[0] if parti else ""
+    if re.match(r"^https?://https?://", s, re.I):
+        s = re.sub(r"^https?://", "", s, flags=re.I)
+        problemi.append("'http://' ripetuto")
+    if s != orig and not problemi:
+        problemi.append("spazi in eccesso")
+    return s, parti[1:], ", ".join(problemi)
+
+
 def normalizza_url(u):
     u = (u or "").strip()
     if not u or u.lower().startswith(("mailto:", "tel:", "#", "javascript:")):
@@ -43,16 +62,21 @@ def normalizza_url(u):
 
 def estrai(html):
     soup = BeautifulSoup(html, "lxml")
-    siti, indirizzo = [], ""
+    siti, indirizzo, problemi, altri_siti = [], "", [], []
     for d in soup.select("div.scheda_museo_accordion div.dettaglio"):
         if d.find("i", class_="fa-map-marker-alt") and not indirizzo:
             indirizzo = d.get_text(" ", strip=True)
         for a in d.find_all("a", href=True):
             if a.get("aria-label") == "Sito web" or d.find("i", class_="fa-globe"):
-                u = normalizza_url(a["href"])
+                pulito, altri, problema = pulisci_url(a["href"])
+                u = normalizza_url(pulito)
                 if u and u not in siti:
                     siti.append(u)
-    return siti, indirizzo
+                    altri_siti.extend(normalizza_url(x) for x in altri)
+                    if problema:
+                        problemi.append(f"link scritto male nella scheda AM ({problema}): {a['href'].strip()}"
+                                        + (" - verificato solo il primo indirizzo" if altri else ""))
+    return siti, indirizzo, problemi, altri_siti
 
 
 def main():
@@ -80,10 +104,11 @@ def main():
             regione = "?"
             note.append(f"provincia non riconosciuta: {prov!r}")
         path = os.path.join(DATI, "cards", slug(v["scheda"]) + ".html.gz")
-        siti, indirizzo, scaricata = [], "", os.path.exists(path)
+        siti, indirizzo, scaricata, altri_siti = [], "", os.path.exists(path), []
         if scaricata:
             with gzip.open(path, "rt", encoding="utf-8") as f:
-                siti, indirizzo = estrai(f.read())
+                siti, indirizzo, problemi, altri_siti = estrai(f.read())
+            note += problemi
         else:
             note.append("scheda AM non scaricata")
         if len(siti) > 1:
@@ -109,6 +134,7 @@ def main():
             "sito": sito,
             "fonte": fonte,
             "indirizzo": indirizzo,
+            "altri_siti": altri_siti,
             "note": note,
         })
     json.dump(musei, open(os.path.join(DATI, "musei.json"), "w", encoding="utf-8"),

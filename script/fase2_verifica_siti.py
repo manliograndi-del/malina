@@ -31,7 +31,7 @@ from urllib.parse import urljoin, urlparse, urlunparse
 import requests
 from bs4 import BeautifulSoup
 
-DATI = sys.argv[1] if len(sys.argv) > 1 else "dati"
+DATI = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] != "--browser" else "dati"
 UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
 HEADERS = {
@@ -116,12 +116,17 @@ PARCHEGGIO_FORTE = [
 PARCHEGGIO_DEBOLE = [
     "coming soon", "under construction", "in costruzione", "it works", "index of",
     "welcome to nginx", "default page", "godaddy", "dominio registrato", "plesk",
-    "sito in manutenzione", "under maintenance", "maintenance mode",
+    "sito in manutenzione", "under maintenance", "maintenance mode", "in manutenzione", "maintenance",
 ]
+# siti di scommesse/gioco: tipico dominio scaduto e ricomprato da altri
+AZZARDO = ["togel", "gacor", "slot online", "judi online", "situs", "toto 4d", "maxwin", "scommesse", "betting",
+           "casino online", "bonus benvenuto", "slot gacor", "bonus di benvenuto", "giri gratis"]
+PARCHEGGIATORI = ["parking", "sedo.com", "bodis", "parkingcrew", "dan.com", "afternic", "hugedomains", "nidoma"]
 SFIDA_BOT = ["just a moment", "attention required", "checking your browser",
              "checking the site connection security", "enable javascript and cookies to continue",
              "verify you are human", "ddos protection by", "access denied", "request unsuccessful",
-             "are you a robot", "sei un robot", "why have i been blocked"]
+             "are you a robot", "sei un robot", "why have i been blocked",
+             "attendi che la tua richiesta venga verificata", "un momento, per favore"]
 
 
 def e_sfida(r):
@@ -139,6 +144,14 @@ def e_sfida(r):
 _host_lock = {}
 _host_last = {}
 _glock = threading.Lock()
+
+
+class NessunaRisposta(Exception):
+    """Il 502/503 non viene dal sito ma dalla rete di questo computer (il sito non ha risposto)."""
+
+
+def e_errore_rete_locale(status, testo):
+    return status in (502, 503, 504) and bool(re.search(r"upstream (connect error|request failed)", testo or ""))
 
 
 class TurnoHost:
@@ -252,7 +265,16 @@ def scarica_http(url, timeout=(12, 25), tentativi_max=2):
             tentativi += 1
             try:
                 st, hd, corpo, enc = una_richiesta(corrente, verify, timeout)
+                if e_errore_rete_locale(st, corpo[:3000].decode("latin1")):
+                    raise NessunaRisposta()
                 break
+            except NessunaRisposta:
+                if tentativi < tentativi_max:
+                    time.sleep(5)
+                    continue
+                ris.update(status=None, finale=corrente, errore="timeout",
+                           dettaglio=f"il server non risponde entro il tempo limite ({tentativi_max} tentativi)")
+                return ris
             except requests.exceptions.SSLError as e:
                 s = str(e)
                 if "unable to get local issuer" in s and verify == CA_BUNDLE:
@@ -350,59 +372,64 @@ def prova_varianti(url):
     return None
 
 
-def scarica_browser(urls, n_thread=3):
-    """Apre gli indirizzi con Chromium (esegue il JavaScript)."""
+def browser_uno(u):
+    """Apre un solo indirizzo con Chromium (esegue il JavaScript)."""
     from playwright.sync_api import sync_playwright
-    risultati = {}
-    coda = list(urls)
+    r = {"url": u, "errore": None}
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        ctx = b.new_context(user_agent=UA, locale="it-IT", viewport={"width": 1366, "height": 900})
+        pg = ctx.new_page()
+        pg.set_default_timeout(20000)
+        try:
+            resp = pg.goto(u, timeout=45000, wait_until="load")
+            try:
+                pg.wait_for_load_state("networkidle", timeout=8000)
+            except Exception:
+                pass
+            t, c, x, _ = testo_da_html(pg.content())
+            for f in pg.frames[1:]:
+                try:
+                    _, c2, x2, _ = testo_da_html(f.content())
+                    c += " " + c2
+                    x += " " + x2
+                except Exception:
+                    pass
+            st = resp.status if resp else None
+            if e_errore_rete_locale(st, c):
+                r.update(status=None, finale=u, errore="connessione non riuscita")
+            else:
+                r.update(status=st, finale=pg.url, titolo=t, testo=c, extra=x)
+        except Exception as e:
+            r.update(status=None, finale=u, errore=str(e).splitlines()[0][:200])
+        b.close()
+    return r
+
+
+def scarica_browser(urls, salva_uno, n_thread=3):
+    """Ogni indirizzo viene aperto in un processo separato con un limite di tempo,
+    cosi' una pagina che blocca il browser non ferma tutto il resto."""
+    fatti = [0]
     lk = threading.Lock()
 
-    def lavoratore():
-        with sync_playwright() as p:
-            b = p.chromium.launch()
-            ctx = b.new_context(user_agent=UA, locale="it-IT", viewport={"width": 1366, "height": 900})
-            while True:
-                with lk:
-                    if not coda:
-                        break
-                    u = coda.pop()
-                pg = ctx.new_page()
-                r = {"url": u, "errore": None}
-                try:
-                    resp = pg.goto(u, timeout=45000, wait_until="load")
-                    try:
-                        pg.wait_for_load_state("networkidle", timeout=8000)
-                    except Exception:
-                        pass
-                    t, c, x, _ = testo_da_html(pg.content())
-                    for f in pg.frames[1:]:
-                        try:
-                            _, c2, x2, _ = testo_da_html(f.content())
-                            c += " " + c2
-                            x += " " + x2
-                        except Exception:
-                            pass
-                    st = resp.status if resp else None
-                    if st == 502 and "upstream request failed" in c:
-                        r.update(status=None, finale=u, errore="connessione non riuscita")
-                    else:
-                        r.update(status=st, finale=pg.url, titolo=t, testo=c, extra=x)
-                except Exception as e:
-                    r.update(status=None, finale=u, errore=str(e).splitlines()[0][:200])
-                finally:
-                    pg.close()
-                with lk:
-                    risultati[u] = r
-                    if len(risultati) % 20 == 0:
-                        log("browser:", len(risultati))
-            b.close()
+    def uno(u):
+        try:
+            out = subprocess.run([sys.executable, os.path.abspath(__file__), "--browser", u],
+                                 capture_output=True, timeout=100, text=True)
+            r = json.loads(out.stdout.strip().splitlines()[-1])
+        except subprocess.TimeoutExpired:
+            r = {"url": u, "status": None, "finale": u, "errore": "la pagina blocca il browser (oltre 100 s)"}
+        except Exception as e:
+            r = {"url": u, "status": None, "finale": u, "errore": f"errore del browser: {type(e).__name__}"}
+        with lk:
+            salva_uno(u, r)
+            fatti[0] += 1
+            if fatti[0] % 20 == 0:
+                log("browser:", fatti[0])
 
-    th = [threading.Thread(target=lavoratore) for _ in range(n_thread)]
-    for t in th:
-        t.start()
-    for t in th:
-        t.join()
-    return risultati
+    with ThreadPoolExecutor(n_thread) as ex:
+        list(ex.map(uno, urls))
+
 
 # ---------------------------------------------------------------- classificazione
 
@@ -413,6 +440,8 @@ collezione collezioni raccolta raccolte fondazione sede sale sala centro spazio 
 percorsi visita storico storica storici arte arti s san santa sant it www ecomuseo archeologico archeologica
 nazionale regionale diocesano diocesana municipale comunale museale polo sistema rete area parco art gallery
 scienze naturali naturale storia tesoro pinacoteca galleria biblioteca archivio casa chiesa""".split())
+PAROLE_VUOTE = set("di del della delle dei degli dello e ed il la lo le gli al alla allo ai agli alle in nel nella "
+                   "nei per con da dal dalla su sul the of and".split())
 SEGMENTI_BANALI = {"it", "ita", "it-it", "it_it", "en", "eng", "en-gb", "en-us", "home", "homepage",
                    "home-page", "index", "default", "main", "portale", "web", "site", "sito"}
 
@@ -469,6 +498,9 @@ def nome_trovato(nome, comune, testo_n, url):
         p = norm(parte)
         if len(p.strip()) >= 10 and p in testo_n and p.strip() not in ("museo civico", "museo diocesano"):
             return True
+    parole = [t for t in norm(nome).split() if len(t) >= 3 and t not in PAROLE_VUOTE]
+    if len(parole) >= 2 and sum(1 for t in parole if f" {t} " in testo_n) >= 0.8 * len(parole):
+        return True
     tok = token_distintivi(nome, comune)
     if tok:
         presenti = sum(1 for t in tok if f" {t} " in testo_n)
@@ -502,6 +534,12 @@ def analizza_pagina(m, r):
     sf = e_sfida(r)
     if sf:
         return "BLOCCATO", [sf]
+    if any(k in (urlparse(fin).hostname or "") for k in PARCHEGGIATORI):
+        return "DUBBIO", [f"dominio parcheggiato, probabilmente scaduto o in vendita (finisce su {fin})"]
+    azz = [k for k in AZZARDO if norm(k) in tutto_n]
+    if len(azz) >= 2:
+        return "DUBBIO", ["contenuto estraneo (gioco d'azzardo/scommesse: " + ", ".join(azz[:3])
+                          + "): probabile dominio scaduto e ricomprato da altri"]
     for k in PARCHEGGIO_FORTE:
         if norm(k) in tutto_n and len(corpo) < 6000:
             return "DUBBIO", [f"sembra un dominio in vendita/parcheggiato o sospeso (compare {k!r})"]
@@ -516,6 +554,9 @@ def analizza_pagina(m, r):
     red = redirect_significativo(m["sito"], fin)
     if red:
         note.append(f"finisce su {fin}")
+    if not e_home(m["sito"]) and e_home(fin) and red and not dominio_proprio(m["nome"], m["comune"], fin):
+        note.append("la pagina indicata non esiste piu' e rimanda alla home page del sito")
+        return "GENERICO", note
     if not nh and e_home(fin) and not dominio_proprio(m["nome"], m["comune"], fin):
         note.append("home page di un ente o di un altro sito: il nome del museo non compare")
         return "GENERICO", note
@@ -614,6 +655,8 @@ def main():
     musei = json.load(open(os.path.join(DATI, "musei.json"), encoding="utf-8"))
     cache_path = os.path.join(DATI, "cache_http.json")
     cache = json.load(open(cache_path, encoding="utf-8")) if os.path.exists(cache_path) else {}
+    for u in [u for u, r in cache.items() if e_errore_rete_locale(r.get("status"), r.get("testo"))]:
+        del cache[u]  # risposta generata dalla rete di questo computer: da riprovare
     tutti = sorted({m["sito"] for m in musei if m.get("sito") and not e_social(m["sito"])})
     da_fare = [u for u in tutti if u not in cache]
     log(f"indirizzi da aprire: {len(da_fare)} (gia' in cache: {len(tutti) - len(da_fare)})")
@@ -652,12 +695,17 @@ def main():
     # browser
     bcache_path = os.path.join(DATI, "cache_browser.json")
     bcache = json.load(open(bcache_path, encoding="utf-8")) if os.path.exists(bcache_path) else {}
+    for u, r in bcache.items():
+        if e_errore_rete_locale(r.get("status"), r.get("testo")):
+            r.update(status=None, errore="connessione non riuscita", testo=None)
     per_browser = sorted({m["sito"] for m in musei if m.get("sito") and serve_browser(m, cache.get(m["sito"]))}
                          - set(bcache))
     log(f"da riaprire con il browser: {len(per_browser)}")
     if per_browser:
-        bcache.update(scarica_browser(per_browser))
-        json.dump(bcache, open(bcache_path, "w", encoding="utf-8"), ensure_ascii=False)
+        def salva_uno(u, r):
+            bcache[u] = r
+            json.dump(bcache, open(bcache_path, "w", encoding="utf-8"), ensure_ascii=False)
+        scarica_browser(per_browser, salva_uno)
 
     # varianti per i link rotti
     vcache_path = os.path.join(DATI, "cache_varianti.json")
@@ -683,9 +731,19 @@ def main():
         esito, cod, fin, note = classifica(m, cache[m["sito"]], bcache.get(m["sito"]), vcache.get(m["sito"]))
         m.update(esito=esito, codice=cod, finale=fin or "")
         m["note"] = m["note"] + note
+    for m in musei:
+        if m.get("altri_siti") and m["esito"] not in ("FUNZIONA", "REINDIRIZZA"):
+            for alt in m["altri_siti"]:
+                r = scarica_http(alt)
+                e2 = analizza_pagina(dict(m, sito=alt), r)[0] if ok(r) else "NON FUNZIONA"
+                m["note"].append(f"l'altro indirizzo riportato nella scheda ({alt}) "
+                                 + ("invece funziona" if e2 in ("FUNZIONA", "REINDIRIZZA") else f"da' esito {e2}"))
     json.dump(musei, open(os.path.join(DATI, "verifica.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     log(dict(Counter(m["esito"] for m in musei)))
 
 
 if __name__ == "__main__":
-    main()
+    if sys.argv[1:2] == ["--browser"]:
+        print(json.dumps(browser_uno(sys.argv[2]), ensure_ascii=False))
+    else:
+        main()
