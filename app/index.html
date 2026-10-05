@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Compilatutto</title>
+<meta name="description" content="Scrivi i tuoi dati una volta sola e usali per compilare moduli online, lettere e autocertificazioni.">
+<meta name="theme-color" content="#2742b0">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icone/icona.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icone/apple-touch-icon.png">
+<link rel="stylesheet" href="stile.css">
+</head>
+<body>
+
+<header class="testata">
+  <div class="contenuto">
+    <div class="testata-riga">
+      <div class="marchio">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <rect width="48" height="48" rx="10" fill="var(--penna)"/>
+          <rect x="12" y="9" width="24" height="30" rx="2" fill="var(--foglio)"/>
+          <rect x="15.5" y="15" width="4" height="4" fill="none" stroke="var(--penna)" stroke-width="1.4"/>
+          <rect x="22" y="16.2" width="10.5" height="1.6" fill="var(--riga-forte)"/>
+          <rect x="15.5" y="22" width="4" height="4" fill="none" stroke="var(--penna)" stroke-width="1.4"/>
+          <rect x="22" y="23.2" width="10.5" height="1.6" fill="var(--riga-forte)"/>
+          <path d="M15.3 31.6l1.9 1.9 3.4-3.9" fill="none" stroke="var(--penna)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="22" y="30.2" width="10.5" height="1.6" fill="var(--riga-forte)"/>
+        </svg>
+        <div>
+          <h1>Compilatutto</h1>
+          <p class="motto">I tuoi dati, scritti una volta sola.</p>
+        </div>
+      </div>
+      <div class="scelta-profilo">
+        <label for="sel-profilo" class="etichetta">Profilo</label>
+        <select id="sel-profilo"></select>
+        <button id="btn-nuovo" class="btn btn-piccolo" type="button">+ Nuovo profilo</button>
+      </div>
+    </div>
+    <nav class="schede" role="tablist" aria-label="Sezioni">
+      <button role="tab" type="button" id="tab-dati" aria-controls="sez-dati" data-scheda="dati">I miei dati</button>
+      <button role="tab" type="button" id="tab-siti" aria-controls="sez-siti" data-scheda="siti">Moduli online</button>
+      <button role="tab" type="button" id="tab-doc" aria-controls="sez-doc" data-scheda="doc">Lettere e documenti</button>
+      <button role="tab" type="button" id="tab-copia" aria-controls="sez-copia" data-scheda="copia">Copia rapida</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="contenuto">
+
+    <!-- I MIEI DATI -->
+    <section id="sez-dati" class="sezione" role="tabpanel" aria-labelledby="tab-dati">
+      <h2>I miei dati</h2>
+      <div id="inizio" class="inizio" hidden>
+        <p><strong>Comincia da qui.</strong> Scrivi i tuoi dati una volta sola: li userai per riempire i moduli su internet e le lettere. Restano su questo dispositivo e non vengono inviati a nessuno.</p>
+        <div class="azioni">
+          <button id="btn-esempio" class="btn" type="button">Prova con dati di esempio</button>
+        </div>
+      </div>
+
+      <div class="foglio">
+        <div class="griglia" style="padding:0">
+          <div class="campo">
+            <label class="etichetta" for="f-nome-profilo">Nome del profilo</label>
+            <input id="f-nome-profilo" autocomplete="off" placeholder="Es. Mario, Lucia (figlia)">
+          </div>
+          <div class="campo">
+            <span class="etichetta" id="et-tipo">Di chi sono i dati</span>
+            <div class="tipo-profilo" role="radiogroup" aria-labelledby="et-tipo">
+              <label><input type="radio" name="tipo-profilo" id="tipo-adulto" value="adulto"> Adulto</label>
+              <label><input type="radio" name="tipo-profilo" id="tipo-minore" value="minore"> Figlio / alunno</label>
+            </div>
+            <span class="aiuto">Con «Figlio / alunno» riempio i campi dell'alunno e lascio vuoti quelli del genitore.</span>
+          </div>
+        </div>
+      </div>
+
+      <form id="modulo-dati" autocomplete="off" novalidate>
+        <div id="gruppi-dati" class="sezione"></div>
+      </form>
+
+      <fieldset class="gruppo">
+        <legend>Altri dati</legend>
+        <div style="display:grid;gap:12px;padding:10px 16px 18px">
+          <p class="nota">Aggiungi quello che ti serve spesso: IBAN, numero di tessera, targa, titolo di studio. Le parole chiave aiutano a trovare il campo giusto nei moduli.</p>
+          <div id="extra"></div>
+          <div class="azioni"><button id="btn-extra" class="btn btn-piccolo" type="button">+ Aggiungi un dato</button></div>
+        </div>
+      </fieldset>
+
+      <div class="foglio">
+        <h3>Salva o sposta i dati</h3>
+        <p class="nota">Per usare gli stessi dati sul telefono e sul computer: esporta il file su un dispositivo e importalo sull'altro. Il file contiene i tuoi dati personali: non lasciarlo in giro.</p>
+        <div class="azioni">
+          <button id="btn-esporta" class="btn" type="button">Esporta file</button>
+          <button id="btn-esporta-testo" class="btn" type="button">Copia come testo</button>
+          <label class="btn" for="import-file">Importa file</label>
+          <input id="import-file" type="file" accept=".json,application/json" hidden>
+          <button id="btn-mostra-import" class="btn" type="button">Incolla testo</button>
+          <span class="sep" style="flex:1"></span>
+          <button id="btn-elimina" class="btn btn-pericolo" type="button">Elimina profilo</button>
+        </div>
+        <div id="import-area" class="campo" hidden>
+          <label class="etichetta" for="import-testo">Testo esportato</label>
+          <textarea id="import-testo" spellcheck="false" placeholder='{"app":"compilatutto", ...}'></textarea>
+          <div class="azioni"><button id="btn-importa-testo" class="btn btn-primario" type="button">Importa</button></div>
+        </div>
+        <p id="stato-salvataggio" class="stato-salvataggio" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <!-- MODULI ONLINE -->
+    <section id="sez-siti" class="sezione" role="tabpanel" aria-labelledby="tab-siti" hidden>
+      <h2>Compila i moduli su internet</h2>
+      <p class="guida">Il pulsante <strong>Compila</strong> si mette tra i preferiti del browser. Quando sei su un modulo lo tocchi: i campi che riconosce si riempiono da soli e si colorano di verde, quelli da fare a mano di giallo. Il modulo non viene mai inviato: controlli e invii tu.</p>
+      <p id="vecchio" class="avviso-vecchio" hidden>Hai cambiato i dati dopo aver messo il pulsante tra i preferiti. Rifallo, così usa i dati nuovi.</p>
+
+      <div class="due-colonne">
+        <div class="foglio">
+          <h3>Sul computer (Windows, Mac, Linux)</h3>
+          <ol class="passi">
+            <li>Mostra la barra dei preferiti: <span class="chiave">Ctrl</span> + <span class="chiave">Maiusc</span> + <span class="chiave">B</span> in Chrome ed Edge.</li>
+            <li>Trascina questo pulsante nella barra:</li>
+          </ol>
+          <div class="timbro-area">
+            <a id="segnalibro" class="timbro" href="#" draggable="true">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="2"/></svg>
+              <span id="segnalibro-nome">Compila</span>
+            </a>
+            <span class="nota">Trascinalo, non cliccarlo qui.</span>
+          </div>
+          <ol class="passi" start="3">
+            <li>Apri il modulo da compilare e clicca <strong>Compila</strong> nella barra.</li>
+          </ol>
+        </div>
+
+        <div class="foglio">
+          <h3>Sul telefono (Android, con Chrome)</h3>
+          <ol class="passi">
+            <li><button id="btn-copia-codice" class="btn btn-primario btn-piccolo" type="button">Copia il codice del pulsante</button></li>
+            <li>In Chrome apri una pagina qualsiasi, tocca <strong>⋮</strong> e poi la stella <strong>☆</strong> per salvarla nei preferiti.</li>
+            <li>Tocca <strong>Modifica</strong>. Come nome scrivi <strong>Compila</strong>; nell'indirizzo cancella tutto e incolla il codice. Salva.</li>
+            <li>Sul modulo da compilare tocca la barra degli indirizzi, scrivi <strong>Compila</strong> e tocca il preferito con la stella.</li>
+          </ol>
+          <p class="nota">Su iPhone funziona allo stesso modo con Safari. Nelle app che non sono un browser usa la <a href="#copia" data-vai="copia">Copia rapida</a>.</p>
+        </div>
+      </div>
+
+      <div class="foglio">
+        <h3>Prova qui, senza rischi</h3>
+        <p class="nota">Questo è un modulo finto, simile a quelli dei Comuni. Tocca «Prova la compilazione» per vedere cosa succede sui siti veri.</p>
+        <div class="azioni">
+          <button id="btn-prova" class="btn btn-primario" type="button">Prova la compilazione</button>
+          <button id="btn-svuota-prova" class="btn" type="button">Svuota il modulo</button>
+        </div>
+        <form id="modulo-prova" class="modulo-prova" autocomplete="off">
+          <div class="intest">Comune di Esempio · Servizi scolastici<strong>Domanda di iscrizione al servizio mensa</strong>Modulo di prova</div>
+          <fieldset>
+            <legend>Dati del richiedente</legend>
+            <div class="righe">
+              <label>Cognome <input name="cognome"></label>
+              <label>Nome <input name="nome"></label>
+              <label>Codice fiscale <input name="cf" maxlength="16"></label>
+              <label>Nato/a il <input name="nascita" placeholder="gg/mm/aaaa"></label>
+              <label>Comune di nascita <input name="luogo_nasc"></label>
+              <label>Prov. <select name="prov_nasc" id="mp-prov"></select></label>
+            </div>
+            <div class="scelte" style="margin-top:10px">Sesso:
+              <label><input type="radio" name="sesso" value="M"> M</label>
+              <label><input type="radio" name="sesso" value="F"> F</label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Residenza</legend>
+            <div class="tabella-scorre">
+              <table>
+                <tr><td>Via / Piazza</td><td><input name="res_via"></td><td>N.</td><td><input name="res_civ" size="4"></td></tr>
+                <tr><td>CAP</td><td><input name="res_cap" maxlength="5"></td><td>Comune</td><td><input name="res_comune"></td></tr>
+              </table>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Dati del padre</legend>
+            <div class="righe">
+              <label>Nome <input name="padre_nome"></label>
+              <label>Cognome <input name="padre_cognome"></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Recapiti</legend>
+            <div class="righe">
+              <label>Cellulare <input type="tel" name="cell"></label>
+              <label>E-mail <input type="email" name="mail"></label>
+              <label>Conferma e-mail <input type="email" name="mail2"></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Dati del coniuge (facoltativo)</legend>
+            <div class="righe">
+              <label>Nome e cognome <input name="coniuge"></label>
+            </div>
+          </fieldset>
+          <div class="azioni"><button type="submit" class="btn">Invia domanda</button><span id="esito-prova" class="nota"></span></div>
+        </form>
+      </div>
+    </section>
+
+    <!-- LETTERE E DOCUMENTI -->
+    <section id="sez-doc" class="sezione" role="tabpanel" aria-labelledby="tab-doc" hidden>
+      <h2>Completa lettere e moduli</h2>
+      <p class="guida">Incolla qui sotto una lettera o un modulo con gli spazi da riempire: segnaposti come <strong>[NOME PADRE]</strong> oppure righe come <strong>«nato a ________»</strong>. Tocca <strong>Completa</strong>: i dati inseriti diventano blu, quello che manca resta in giallo.</p>
+      <div class="barra-doc">
+        <button id="btn-completa" class="btn btn-primario" type="button">Completa</button>
+        <button id="btn-copia-doc" class="btn" type="button">Copia il testo</button>
+        <button id="btn-word" class="btn" type="button">Scarica per Word</button>
+        <button id="btn-stampa" class="btn" type="button">Stampa</button>
+      </div>
+      <div class="barra-doc">
+        <span class="etichetta">Esempi</span>
+        <button id="btn-es-auto" class="btn btn-piccolo" type="button">Autocertificazione</button>
+        <button id="btn-es-lettera" class="btn btn-piccolo" type="button">Lettera al Comune</button>
+        <button id="btn-svuota-doc" class="btn btn-piccolo" type="button">Svuota il foglio</button>
+      </div>
+      <label class="spunta" for="adatta-genere"><input type="checkbox" id="adatta-genere" checked><span>Adatta il testo al sesso del profilo (nato/a → nato o nata)</span></label>
+      <div id="riepilogo-doc" class="riepilogo" aria-live="polite"></div>
+      <div id="documento" class="documento" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true" aria-label="Testo della lettera o del modulo" data-vuoto="Incolla qui la lettera o il modulo (Ctrl+V, oppure tieni premuto e scegli Incolla)."></div>
+      <details class="foglio">
+        <summary>Segnaposti che riconosco</summary>
+        <p class="nota">Tocca un segnaposto per copiarlo. Se chiedi a Claude di prepararti una lettera, digli di usare questi: si riempiono da soli.</p>
+        <div id="segnaposti" class="segnaposti"></div>
+      </details>
+    </section>
+
+    <!-- COPIA RAPIDA -->
+    <section id="sez-copia" class="sezione" role="tabpanel" aria-labelledby="tab-copia" hidden>
+      <h2>Copia rapida</h2>
+      <p class="guida">Tocca un dato per copiarlo, poi incollalo dove ti serve: in un'app, in un modulo che il pulsante non riconosce, in un messaggio.</p>
+      <div id="elenco-copia" class="foglio elenco-copia"></div>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="contenuto">
+    <p>I dati restano su questo dispositivo, nel browser: Compilatutto non li invia a nessun server. Il pulsante «Compila» ne contiene una copia, quindi chi usa il tuo browser può vederli.</p>
+    <div class="azioni"><button id="btn-installa" class="btn btn-piccolo" type="button" hidden>Installa Compilatutto come app</button></div>
+  </div>
+</footer>
+
+<div id="avviso" class="avviso" role="status" aria-live="polite" hidden></div>
+
+<script src="campi.js"></script>
+<script src="motore.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

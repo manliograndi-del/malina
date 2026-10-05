@@ -1,0 +1,17 @@
+{
+  "name": "Compilatutto",
+  "short_name": "Compilatutto",
+  "description": "Scrivi i tuoi dati una volta sola e usali per compilare moduli online, lettere e autocertificazioni.",
+  "lang": "it",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f5f9",
+  "theme_color": "#2742b0",
+  "icons": [
+    { "src": "icone/icona-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icone/icona-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icone/icona-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icone/icona.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

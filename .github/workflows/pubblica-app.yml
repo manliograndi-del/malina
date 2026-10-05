@@ -1,0 +1,48 @@
+# Pubblica la cartella app/ su GitHub Pages a ogni modifica del ramo main.
+# Una volta sola: Settings → Pages → Source: «GitHub Actions».
+# Con un account GitHub gratuito Pages funziona solo se il repository è pubblico
+# (il codice non contiene dati personali: i dati restano nel browser di chi usa l'app).
+name: Pubblica Compilatutto
+
+on:
+  push:
+    branches: [main]
+    paths: ['app/**', '.github/workflows/pubblica-app.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  prova:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+
+  pubblica:
+    needs: prova
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app
+      - id: deploy
+        uses: actions/deploy-pages@v4

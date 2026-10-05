@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="it">
+<head><meta charset="utf-8"><title>Modulo con più persone</title></head>
+<body>
+<!-- Sezioni per genitori, coniuge e azienda: vanno riempite solo quelle che riguardano il profilo. -->
+<form>
+  <fieldset><legend>Dati del richiedente</legend>
+    <div><label for="r1">Nome</label><input id="r1" data-atteso="Mario"></div>
+    <div><label for="r2">Cognome</label><input id="r2" data-atteso="Rossi"></div>
+    <div><span id="lbl-sesso">Sesso</span>
+      <div role="radiogroup" aria-labelledby="lbl-sesso">
+        <input type="radio" id="sx-m" name="sx" value="maschio" style="position:absolute;opacity:0;width:0;height:0" data-atteso="si"><label for="sx-m">Uomo</label>
+        <input type="radio" id="sx-f" name="sx" value="femmina" style="position:absolute;opacity:0;width:0;height:0" data-atteso="no"><label for="sx-f">Donna</label>
+      </div>
+    </div>
+  </fieldset>
+  <fieldset><legend>Dati del padre</legend>
+    <label>Nome <input name="pn" data-atteso="Giuseppe"></label>
+    <label>Cognome <input name="pc" data-atteso="Rossi"></label>
+    <label>Data di nascita <input name="pd" data-atteso=""></label>
+  </fieldset>
+  <fieldset><legend>Dati della madre</legend>
+    <label>Nome <input name="mn" data-atteso="Anna"></label>
+    <label>Cognome <input name="mc" data-atteso="Bianchi"></label>
+  </fieldset>
+  <fieldset><legend>Dati del coniuge</legend>
+    <label>Nome <input name="cn" data-atteso=""></label>
+    <label>Codice fiscale <input name="ccf" data-atteso=""></label>
+  </fieldset>
+  <fieldset><legend>Dati dell'azienda</legend>
+    <label>Indirizzo <input name="az_ind" data-atteso=""></label>
+  </fieldset>
+  <fieldset><legend>Persona da contattare</legend>
+    <label>Nome <input name="pc_nome" data-atteso=""></label>
+  </fieldset>
+  <div style="display:none"><label>Telefono <input name="tel_nascosto" data-atteso=""></label></div>
+  <label>Email <input name="em" disabled data-atteso=""></label>
+  <label>Cellulare <input name="cel" data-atteso="+39 333 1234567"></label>
+</form>
+</body>
+</html>

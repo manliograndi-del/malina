@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="it">
+<head><meta charset="utf-8"><title>Modulo moderno</title></head>
+<body>
+<!-- Modulo con etichette collegate, come quelli dei siti recenti. -->
+<form role="search"><input type="search" name="q" data-atteso=""><input name="s" placeholder="Cerca nel sito" data-atteso=""></form>
+<form><label for="u">Nome utente</label><input id="u" name="username" data-atteso=""><label for="pw">Password</label><input id="pw" type="password"></form>
+<form id="iscrizione">
+  <h2>Dati anagrafici</h2>
+  <label for="a1">Nome *</label><input id="a1" name="firstName" data-atteso="Mario">
+  <label for="a2">Cognome *</label><input id="a2" name="lastName" data-atteso="Rossi">
+  <label for="a3">Codice Fiscale</label><input id="a3" name="codiceFiscale" maxlength="16" data-atteso="RSSMRA80C12H501E">
+  <label for="a4">Data di nascita</label><input id="a4" type="date" name="dataNascita" data-atteso="1980-03-12">
+  <label for="a5">Sesso</label>
+  <select id="a5" name="genere" data-atteso="M"><option value="">Seleziona</option><option value="M">Maschile</option><option value="F">Femminile</option><option value="X">Altro</option></select>
+  <label for="a6">Luogo di nascita</label><input id="a6" name="luogoNascita" data-atteso="Roma">
+  <label for="a7">Cittadinanza</label>
+  <select id="a7" data-atteso="IT"><option value="">--</option><option value="FR">Francese</option><option value="IT">Italiana</option></select>
+  <h2>Residenza</h2>
+  <label for="b1">Via e numero civico</label><input id="b1" name="indirizzo" data-atteso="Via Appia Nuova, 12">
+  <label for="b2">CAP</label><input id="b2" name="cap" inputmode="numeric" maxlength="5" data-atteso="00183">
+  <label for="b3">Comune</label><input id="b3" name="comune" data-atteso="Roma">
+  <label for="b4">Provincia</label><input id="b4" name="provincia" maxlength="2" data-atteso="RM">
+  <h2>Contatti</h2>
+  <label for="c1">Telefono</label><input id="c1" type="tel" name="telefono" maxlength="10" data-atteso="3331234567">
+  <label for="c2">Email</label><input id="c2" type="email" name="email" data-atteso="mario.rossi@example.com">
+  <label for="c3">Conferma email</label><input id="c3" type="email" name="email2" data-atteso="mario.rossi@example.com">
+  <label for="c4">IBAN</label><input id="c4" name="iban" data-atteso="IT60X0542811101000000123456">
+  <label for="c5">Codice fiscale del coniuge</label><input id="c5" name="cfConiuge" data-atteso="">
+  <label for="c6">Nome azienda</label><input id="c6" name="azienda" data-atteso="">
+  <label for="c7">Note</label><textarea id="c7" name="note" data-atteso=""></textarea>
+  <label for="c8">Email secondaria</label><input id="c8" value="gia@scritto.it" data-atteso="gia@scritto.it">
+</form>
+<form><label>Iscriviti alla newsletter <input type="email" name="newsletter" data-atteso=""></label></form>
+<script>
+  // Come fanno React e simili: il valore conta solo se arriva l'evento «input».
+  document.addEventListener('input', function (e) { e.target.dataset.visto = e.target.value; }, true);
+</script>
+</body>
+</html>
