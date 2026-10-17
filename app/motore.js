@@ -197,7 +197,8 @@ function compilaModulo(P, F, opz) {
       });
       // «Numero» dentro «Documento di riconoscimento»: si prova a leggere l'etichetta insieme alla sezione
       if (!k && ctx && !opz.doc) {
-        const conSezione = indizi.map(function (h) { return [h[0] + ' ' + ctx, 1]; });
+        // la frase deve contenere almeno una parola dell'etichetta: «numero documento» sì, «documento riconoscimento» no
+        const conSezione = indizi.map(function (h) { return [h[0] + ' ' + ctx, new Set(h[0].split(' '))]; });
         CAMPI.forEach(function (c) {
           if (org && !c.org) { return; }
           if (c.v && !veicoli.length) { return; }
@@ -206,7 +207,8 @@ function compilaModulo(P, F, opz) {
             if (has(h[0], c.escl)) { return; }
             const s = ' ' + h[0] + ' ';
             c.sin.forEach(function (sn) {
-              if (sn[1] > 1 && s.indexOf(' ' + sn[0] + ' ') >= 0 && sn[1] > p) { p = sn[1]; }
+              if (sn[1] < 2 || sn[1] <= p || s.indexOf(' ' + sn[0] + ' ') < 0) { return; }
+              if (sn[0].split(' ').some(function (t) { return h[1].has(t); })) { p = sn[1]; }
             });
           });
           if (p > meglio) { meglio = p; k = c.k; }
@@ -333,6 +335,11 @@ function compilaModulo(P, F, opz) {
       const d = docPrincipale(pers);
       if (!d) { return ''; }
       if (k === 'tipo_documento') { return d.t === 'ci' ? (grezzo(pers, 'ci_tipo') || d.nome) : d.nome; }
+      // La carta d'identità la rilascia un Comune: «Comune di Roma», salvo che il testo dica già «dal Comune di»
+      if (k === 'rilasciato_da' && d.t === 'ci') {
+        const c = grezzo(pers, 'ci_comune');
+        return c && !/^comune/i.test(c) && h.split(' ').pop() !== 'comune' ? 'Comune di ' + c : c;
+      }
       return d.campi[k] ? calcola(d.campi[k], pers, h, info) : '';
     }
     if (k === 'luogo') { return grezzo(pers, 'citta'); }
@@ -527,12 +534,17 @@ function compilaModulo(P, F, opz) {
     voci.forEach(function (v, i) {
       const tt = v.cerca.split(' ');
       const titolo = norm(v.titolo + ' ' + v.gruppo).split(' ');
+      // una parola trova le voci che iniziano così («pass» → passaporto) o, se è lunga, che la contengono («mail» → email)
+      const trova = function (lista, q) {
+        if (lista.some(function (x) { return x.indexOf(q) === 0; })) { return 2; }
+        return q.length >= 3 && lista.some(function (x) { return x.indexOf(q) > 0; }) ? 1 : 0;
+      };
       let p = 0;
       for (let j = 0; j < qt.length; j++) {
-        const inTitolo = titolo.some(function (x) { return x.indexOf(qt[j]) === 0; });
-        const altrove = tt.some(function (x) { return x.indexOf(qt[j]) === 0; });
+        const inTitolo = trova(titolo, qt[j]);
+        const altrove = inTitolo ? 0 : trova(tt, qt[j]);
         if (!inTitolo && !altrove) { return; }
-        p += inTitolo ? 3 : 1;
+        p += inTitolo ? 2 + inTitolo : altrove;
       }
       punti.push([p, i]);
     });
@@ -1103,7 +1115,8 @@ function compilaModulo(P, F, opz) {
   const suInput = function (e) {
     if (!e.isTrusted || e.target !== bersaglio || menu.style.display === 'none') { return; }
     disegnaVoci(bersaglio.value);
-    if (!mostrate.length) { menu.style.display = 'none'; }
+    menu.style.display = mostrate.length ? 'flex' : 'none';
+    posiziona();
   };
   const suTasto = function (e) {
     if (!bersaglio || e.target !== bersaglio) { return; }
@@ -1119,7 +1132,7 @@ function compilaModulo(P, F, opz) {
     if (scrivibile(e.target) && attivo && dentroRadice(e.target)) { apriMenu(e.target); return; }
     chiudiMenu();
   };
-  ricerca.addEventListener('input', function () { disegnaVoci(ricerca.value); });
+  ricerca.addEventListener('input', function () { disegnaVoci(ricerca.value); posiziona(); });
   ricerca.addEventListener('keydown', function (e) {
     if (e.key === 'ArrowDown') { e.preventDefault(); evidenzia(attiva + 1); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); evidenzia(attiva - 1); }

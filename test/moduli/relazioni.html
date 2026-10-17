@@ -2,7 +2,7 @@
 <html lang="it">
 <head><meta charset="utf-8"><title>Modulo con più persone</title></head>
 <body>
-<!-- Sezioni per genitori, coniuge e azienda: vanno riempite solo quelle che riguardano il profilo. -->
+<!-- Sezioni per genitori, coniuge e azienda: il coniuge viene dalla sua scheda, azienda e persona da contattare restano vuote. -->
 <form>
   <fieldset><legend>Dati del richiedente</legend>
     <div><label for="r1">Nome</label><input id="r1" data-atteso="Mario"></div>
@@ -23,9 +23,14 @@
     <label>Nome <input name="mn" data-atteso="Anna"></label>
     <label>Cognome <input name="mc" data-atteso="Bianchi"></label>
   </fieldset>
+  <fieldset><legend>Documento di riconoscimento</legend>
+    <label>Tipo <select name="doc_tipo" data-atteso="Carta d'identità"><option value="">—</option><option>Carta d'identità</option><option>Passaporto</option></select></label>
+    <label>Numero <input name="doc_num" data-atteso="CA12345AB"></label>
+    <label>Scadenza <input name="doc_scad" data-atteso="12/03/2032"></label>
+  </fieldset>
   <fieldset><legend>Dati del coniuge</legend>
-    <label>Nome <input name="cn" data-atteso=""></label>
-    <label>Codice fiscale <input name="ccf" data-atteso=""></label>
+    <label>Nome <input name="cn" data-atteso="Lucia"></label>
+    <label>Codice fiscale <input name="ccf" data-atteso="VRDLCU82A41H501X"></label>
   </fieldset>
   <fieldset><legend>Dati dell'azienda</legend>
     <label>Indirizzo <input name="az_ind" data-atteso=""></label>
