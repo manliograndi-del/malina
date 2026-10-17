@@ -4,17 +4,13 @@ Questo repository contiene **Compilatutto** (cartella `app/`), un'app web che co
 
 ## Stato dei lavori (versione 2)
 
-Pronte e provate (`npm test`): `campi.js`, `motore.js`, `cassaforte.js`, `pulsante.js`, `moduli-pdf.js`, `lib/pdf-lib.min.js`, `index.html`, `stile.css`.
+Pronte e provate (`npm test`): `campi.js`, `motore.js`, `cassaforte.js`, `pulsante.js`, `moduli-pdf.js`, `lib/pdf-lib.min.js`, `index.html`, `stile.css` e `app.js`, che collega le schermate alle altre parti:
 
-**Manca `app/app.js` versione 2**: oggi è ancora quello della versione 1 e non corrisponde alla nuova `index.html`. Deve collegare le schermate di `index.html` alle parti già pronte:
+- avvio: crea la cassaforte, mostra il codice di recupero, sblocco con password o codice, apertura di un file; i dati in chiaro della versione 1 (`localStorage['compilatutto.v1']`) vanno nella cassaforte e poi vengono cancellati;
+- salvataggio cifrato a ogni modifica (copia nel browser e file sul computer se collegato), chiusura automatica dopo i minuti scelti;
+- Famiglia, Siti web (pulsante cifrato e modulo di prova), PDF, Lettere, Cerca e copia, Sicurezza.
 
-- avvio: crea la cassaforte (`Cassaforte.crea`), mostra il codice di recupero, sblocco con password o codice, apertura di un file; sposta nella cassaforte i dati in chiaro della versione 1 (`localStorage['compilatutto.v1']`) e poi li cancella;
-- salvataggio cifrato a ogni modifica (`Cassaforte.aggiorna`, copia nel browser, file sul computer se collegato) e chiusura automatica dopo i minuti scelti;
-- Famiglia: elenco persone e veicoli, schede con i gruppi di `CT.gruppi` / `CT.gruppiVeicolo`, altri dati, controllo del codice fiscale;
-- Siti web: crea il pulsante (`Cassaforte.cifraPerPulsante` + codice come in `test/prova.cjs`), modulo di prova;
-- PDF (`ModuliPdf`), Lettere (`api.spazio`, `api.riconosci`), Cerca e copia (`api.elenco`, `api.cerca`), Sicurezza.
-
-I dati per il motore si preparano come `costruisciF` in `test/prova.cjs`.
+I dati per il motore si preparano con `costruisciF` (uguale in `app.js` e `test/prova.cjs`).
 
 ## Quando prepari lettere, moduli o autocertificazioni per l'utente
 

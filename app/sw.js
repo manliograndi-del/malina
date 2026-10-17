@@ -1,7 +1,7 @@
 /* Compilatutto – fa funzionare l'app anche senza connessione. Prima prova la rete, così gli aggiornamenti arrivano subito. */
-const CACHE = 'compilatutto-v1';
-const FILE = ['./', 'index.html', 'stile.css', 'campi.js', 'motore.js', 'app.js', 'manifest.webmanifest',
-  'icone/icona.svg', 'icone/icona-192.png', 'icone/icona-512.png'];
+const CACHE = 'compilatutto-v2';
+const FILE = ['./', 'index.html', 'stile.css', 'campi.js', 'motore.js', 'pulsante.js', 'cassaforte.js', 'moduli-pdf.js',
+  'lib/pdf-lib.min.js', 'app.js', 'manifest.webmanifest', 'icone/icona.svg', 'icone/icona-192.png', 'icone/icona-512.png'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILE); }).then(function () { return self.skipWaiting(); }));

@@ -1,7 +1,8 @@
 /*
  * Prova automatica di Compilatutto (versione 2).
  * Prova in Chromium le parti dell'app una per una: il motore sui moduli di test/moduli, il pulsante «Compila»
- * con la password e l'elenco dei dati, la cassaforte cifrata, gli spazi delle lettere e i PDF.
+ * con la password e l'elenco dei dati, la cassaforte cifrata, gli spazi delle lettere, i PDF e infine l'app intera
+ * (creazione della cassaforte, dati della versione 1, blocco e sblocco).
  * Avvio: npm test
  */
 const http = require('http');
@@ -268,6 +269,54 @@ function leggiAttesi(attr) {
   const attesoPdf = { campi: 10, cognome: 'Rossi', nome: 'Mario', cf: 'RSSMRA80C12H501E', nascita: '12/03/1980', coniuge: 'Lucia Verdi',
     targa: 'AB123CD', vuoto: '', m: true, f: false, prov: 'RM', problemi: '' };
   Object.keys(attesoPdf).forEach(function (k) { controlla('pdf ' + k, p[k], attesoPdf[k]); });
+
+  // 6. L'app: dati della versione 1 spostati nella cassaforte, scheda Famiglia, blocco e sblocco
+  console.log('App');
+  await page.goto(base + '/app/index.html');
+  await page.evaluate(function () {
+    localStorage.clear();
+    localStorage.setItem('compilatutto.v1', JSON.stringify({ profili: [{ id: 'a', n: 'Mario', t: 'adulto',
+      d: { nome: 'Mario', cognome: 'Rossi', tipo_documento: 'Passaporto', numero_documento: 'YA1234567' }, x: [] }], attivo: 'a' }));
+  });
+  await page.reload();
+  await page.locator('#avviso-migrazione').waitFor();
+  await page.fill('#crea-pw', PASSWORD);
+  await page.fill('#crea-pw2', PASSWORD);
+  await page.check('#crea-capito');
+  await page.click('#btn-crea');
+  await page.locator('#codice-recupero').waitFor({ timeout: 15000 });
+  await page.check('#codice-salvato');
+  await page.click('#btn-codice-fatto');
+  controlla('app: nome spostato dalla versione 1', await page.inputValue('#f-nome'), 'Mario');
+  controlla('app: passaporto spostato dalla versione 1', await page.inputValue('#f-passaporto_numero'), 'YA1234567');
+  await page.fill('#f-codice_fiscale', 'RSSMRA80C12H501E');
+  await page.getByRole('button', { name: 'Ricava data di nascita e sesso' }).click();
+  controlla('app: data di nascita dal codice fiscale', await page.inputValue('#f-data_nascita'), '1980-03-12');
+  await page.selectOption('#nuova-persona', 'coniuge');
+  await page.click('#btn-nuova-persona');
+  await page.fill('#f-nome', 'Lucia');
+  await page.fill('#f-cognome', 'Verdi');
+  await page.waitForTimeout(800);
+  const salvati = await page.evaluate(function () {
+    return { v1: localStorage.getItem('compilatutto.v1'), copia: localStorage.getItem('compilatutto.cassaforte') || '' };
+  });
+  controlla('app: dati della versione 1 cancellati', salvati.v1, null);
+  controlla('app: copia nel browser cifrata', /Rossi|Lucia|RSSMRA|YA1234567/.test(salvati.copia) || !salvati.copia, false);
+  await page.click('#tab-lettere');
+  await page.click('#btn-completa');
+  controlla('app: lettera completata', /Il sottoscritto Mario Rossi nato a/.test(await page.textContent('#documento')), true);
+  await page.click('#btn-blocca');
+  await page.locator('#schermo-sblocco').waitFor();
+  controlla('app: nessun dato sulla pagina chiusa', await page.evaluate(function () { return /Rossi|Verdi|RSSMRA|YA1234567/.test(document.body.innerHTML); }), false);
+  await page.fill('#sblocca-pw', 'password-sbagliata-1');
+  await page.click('#btn-sblocca');
+  await page.getByText('Password sbagliata. Riprova.').waitFor({ timeout: 15000 });
+  await page.reload();
+  await page.fill('#sblocca-pw', PASSWORD);
+  await page.click('#btn-sblocca');
+  await page.locator('#schermo-app').waitFor({ timeout: 15000 });
+  controlla('app: famiglia riaperta', await page.textContent('#lista-persone'), 'MRMario RossiIoLVLucia VerdiMarito o moglie');
+  await page.evaluate(function () { localStorage.clear(); });
 
   problemi.forEach(function (m) { errori++; console.log('  ✗ errore JavaScript: ' + m); });
   await browser.close();
