@@ -826,6 +826,9 @@ function compilaModulo(P, F, opz) {
     };
     raccogli(radice);
 
+    const haCellulare = elementi.some(function (e) {
+      return /cellulare|mobile/i.test([e.name, e.id, e.title, e.getAttribute('placeholder'), e.getAttribute('aria-label'), e.value].join(' '));
+    });
     const usati = new Set();
     const piano = [];
     const daFare = [];
@@ -856,6 +859,8 @@ function compilaModulo(P, F, opz) {
         else if (tipo === 'tel') { a = analizza(H, ctx, 'telefono'); }
       }
       if (a && a.salta) { ultimaData = null; precedente = null; return; }
+      // «Telefono» e «Cellulare» nello stesso modulo: il cellulare va nel suo campo, il fisso in «Telefono»
+      if (a && a.k === 'telefono' && haCellulare && !has(h, ['cellulare', 'cell', 'mobile', 'smartphone'])) { a = { k: 'telefono_fisso', r: a.r }; }
       if (a && DATE.has(a.k) && !parte) { parte = parteData(h) || (el.tagName === 'SELECT' ? parteDaOpzioni(el) : ''); }
       if (!a && ultimaData && (el.tagName === 'SELECT' || (el.maxLength > 0 && el.maxLength <= 4))) {
         const pd = parteData(h) || parteDaOpzioni(el);
