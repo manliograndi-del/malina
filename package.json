@@ -5,7 +5,8 @@
   "description": "Scrivi i tuoi dati una volta sola e usali per compilare moduli online, lettere e autocertificazioni.",
   "scripts": {
     "avvia": "npx --yes http-server app -p 8080 -c-1",
-    "test": "node test/prova.cjs"
+    "estensione": "node strumenti/prepara-estensione.cjs",
+    "test": "node test/prova.cjs && node test/prova-estensione.cjs"
   },
   "devDependencies": {
     "playwright": "^1.56.1"

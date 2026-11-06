@@ -1,0 +1,55 @@
+/* Compilatutto, estensione: stessi colori dell'app (carta, blu penna, giallo evidenziatore). */
+:root {
+  --carta: #f3f5f9; --foglio: #ffffff; --inchiostro: #161b2e; --grafite: #586078; --riga: #d3d9e4; --riga-forte: #aab3c5;
+  --penna: #2742b0; --penna-scura: #1b2f86; --penna-tenue: #e7ecfb; --su-penna: #ffffff;
+  --ok: #1f7d46; --ok-tenue: #e2f3e9; --errore: #b42318; --evidenziatore: #fff0a0;
+  --testo: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --carta: #0e1220; --foglio: #161b2b; --inchiostro: #e8ebf4; --grafite: #a0a8bd; --riga: #2b3247; --riga-forte: #47506a;
+    --penna: #93a9ff; --penna-scura: #b7c6ff; --penna-tenue: #1d2647; --su-penna: #0e1220;
+    --ok: #5fd08f; --ok-tenue: #11301f; --errore: #ff8b80; --evidenziatore: #5a4a00;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--carta); color: var(--inchiostro); font: 14px/1.45 var(--testo); }
+[hidden] { display: none !important; }
+p { margin: 0; }
+.testa { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--riga); background: var(--foglio); }
+.testa img { width: 24px; height: 24px; }
+.testa strong { font-size: 15px; }
+.pillola { margin-left: auto; border-radius: 999px; padding: 3px 9px; font-size: 11px; font-weight: 600; background: var(--penna-tenue); color: var(--penna-scura); }
+.pillola.ok { background: var(--ok-tenue); color: var(--ok); }
+.corpo { display: grid; gap: 10px; padding: 14px; }
+label, .etichetta { display: block; font: 600 11px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--grafite); }
+input, select { font: inherit; width: 100%; padding: 8px 10px; border: 1px solid var(--riga-forte); border-radius: 4px; background: var(--foglio); color: var(--inchiostro); }
+input:focus, select:focus { outline: 2px solid var(--penna); border-color: var(--penna); }
+button { font: 600 13px/1.2 var(--testo); cursor: pointer; border-radius: 6px; padding: 9px 12px; border: 1px solid var(--riga-forte); background: var(--foglio); color: var(--inchiostro); }
+button:hover { border-color: var(--penna); color: var(--penna); }
+button:disabled { opacity: .6; cursor: wait; }
+.primario { background: var(--penna); border-color: var(--penna); color: var(--su-penna); width: 100%; padding: 11px 12px; font-size: 14px; }
+.primario:hover { background: var(--penna-scura); border-color: var(--penna-scura); color: var(--su-penna); }
+.riga { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.collegamento { border: 0; background: none; padding: 4px 0; color: var(--penna); text-decoration: underline; }
+.nota { font-size: 12px; color: var(--grafite); }
+.errore { color: var(--errore); font-size: 13px; }
+.errore:empty { display: none; }
+.esito { border-radius: 6px; padding: 8px 10px; background: var(--ok-tenue); color: var(--ok); font-weight: 600; }
+.esito:empty { display: none; }
+.esito.attenzione { background: var(--evidenziatore); color: var(--inchiostro); }
+.chiave { font: 600 11px/1 var(--mono); border: 1px solid var(--riga-forte); border-bottom-width: 2px; border-radius: 4px; padding: 2px 5px; background: var(--carta); white-space: nowrap; }
+/* Finestrella */
+body.finestrella { width: 320px; }
+/* Pagina delle impostazioni */
+.pagina { max-width: 640px; margin: 0 auto; padding: 24px 16px 40px; display: grid; gap: 16px; }
+.pagina h1 { margin: 0; font-size: 22px; }
+.foglio { background: var(--foglio); border: 1px solid var(--riga); border-radius: 6px; padding: 18px; display: grid; gap: 12px; }
+.foglio h2 { margin: 0; font-size: 15px; }
+.azioni { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.azioni .primario { width: auto; }
+.passi { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; }
+label.collegamento { font: 600 13px/1.2 var(--testo); letter-spacing: 0; text-transform: none; color: var(--penna); cursor: pointer; }

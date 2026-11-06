@@ -101,7 +101,7 @@ Il motore non preme mai «Invia». I campi riempiti diventano verdi, quelli da f
 | PDF non compilabili | Istruzioni per Edge («Aggiungi testo»), Acrobat Reader («Compila e firma») e Android, con «Cerca e copia» accanto | istruzioni |
 | Lettere, Word, autocertificazioni | Segnaposti `[NOME PADRE]` e spazi `nato a ______`; copia con formattazione o file per Word | fatto |
 | App, programmi, moduli di carta | «Cerca e copia»: scrivi «targa», «scadenza passaporto», «Lucia codice fiscale» e copi il valore | fatto |
-| Estensione per Chrome, Edge, Firefox | Come il pulsante, ma con menu col tasto destro «Inserisci dato» e senza dover riscrivere la password a ogni pagina | da fare |
+| Estensione per Chrome ed Edge | Prende dall'app la copia cifrata; la password si scrive una volta e i dati aperti restano solo nella memoria dell'estensione (`chrome.storage.session`) fino alla chiusura automatica. Il motore gira nel mondo isolato dell'estensione: la pagina vede solo i valori inseriti. Icona, `Alt+Maiusc+K`, tasto destro | fatto (Firefox da fare) |
 | App Android con «servizio di compilazione automatica» | Riempie i campi in tutte le app del telefono, come fanno i gestori di password | da fare |
 | Scrivere sopra i PDF non compilabili | Mostrare la pagina, toccare il punto e scegliere il dato | da fare |
 

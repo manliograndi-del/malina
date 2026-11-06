@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Compilatutto – impostazioni</title>
+<link rel="stylesheet" href="stile.css">
+</head>
+<body>
+<main class="pagina">
+  <div class="riga"><h1>Compilatutto</h1><span id="stato" class="pillola">Nessun dato collegato</span></div>
+
+  <section class="foglio">
+    <h2>I dati della famiglia</h2>
+    <p id="dati-stato" class="nota"></p>
+    <ol class="passi">
+      <li>Apri l'app Compilatutto in un'altra scheda, con i tuoi dati già salvati.</li>
+      <li>Torna qui e tocca «Prendi i dati dall'app». Prendo solo la copia cifrata: per aprirla servirà la tua password.</li>
+    </ol>
+    <div class="azioni">
+      <button id="btn-app" class="primario" type="button">Prendi i dati dall'app</button>
+      <button id="btn-apri-app" type="button">Apri l'app</button>
+      <label class="collegamento" for="file">oppure apri il file famiglia.compilatutto</label>
+      <input id="file" type="file" accept=".compilatutto,.json,application/json" hidden>
+    </div>
+    <p class="nota">Quando cambi i dati nell'app, ripeti «Prendi i dati dall'app» per aggiornare anche l'estensione.</p>
+    <p id="dati-esito" class="esito" aria-live="polite"></p>
+  </section>
+
+  <section class="foglio">
+    <h2>Chiusura automatica</h2>
+    <p class="nota">Dopo che hai scritto la password, l'estensione resta aperta per tutte le pagine del modulo e si chiude da sola dopo questo tempo senza compilare. Si chiude sempre anche quando chiudi il browser.</p>
+    <div class="azioni">
+      <label for="minuti">Chiudi dopo</label>
+      <select id="minuti" style="width:auto">
+        <option value="5">5 minuti</option>
+        <option value="15">15 minuti</option>
+        <option value="30">30 minuti</option>
+        <option value="60">1 ora</option>
+      </select>
+    </div>
+  </section>
+
+  <section class="foglio">
+    <h2>Come si usa</h2>
+    <ol class="passi">
+      <li>Sul modulo tocca l'icona di Compilatutto accanto alla barra degli indirizzi (se non la vedi, tocca il pezzo di puzzle e fissala con la puntina).</li>
+      <li>La prima volta scrivi la password, poi scegli per chi compili e tocca «Compila questa pagina».</li>
+      <li>Nelle pagine successive basta toccare di nuovo «Compila», oppure premere <span class="chiave" id="scorciatoia">Alt+Maiusc+K</span>, oppure tasto destro → «Compila con Compilatutto».</li>
+      <li>Per un campo rimasto vuoto toccalo: si apre l'elenco dei dati e scrivendo cerchi quello che ti serve.</li>
+    </ol>
+    <p class="nota">La scorciatoia si cambia da <span class="chiave">chrome://extensions/shortcuts</span> (in Edge: <span class="chiave">edge://extensions/shortcuts</span>).</p>
+  </section>
+
+  <section class="foglio">
+    <h2>Scollega i dati</h2>
+    <p class="nota">Toglie dall'estensione la copia cifrata. L'app e il file sul computer restano come sono.</p>
+    <div class="azioni"><button id="btn-scollega" type="button">Scollega i dati</button></div>
+  </section>
+</main>
+<script src="campi.js"></script>
+<script src="cassaforte.js"></script>
+<script src="comuni.js"></script>
+<script src="impostazioni.js"></script>
+</body>
+</html>

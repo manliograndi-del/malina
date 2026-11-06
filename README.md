@@ -16,7 +16,8 @@ Apri l'app e scrivi i tuoi dati. Il codice fiscale viene controllato e, se vuoi,
 Per un figlio crea un nuovo profilo e scegli «Figlio / alunno»: nei moduli della scuola verranno riempiti i campi dell'alunno e non quelli del genitore.
 
 ### 2. Moduli online
-- **Computer (Chrome, Edge, Firefox):** mostra la barra dei preferiti (`Ctrl` + `Maiusc` + `B`) e trascina lì il pulsante **Compila**. Sul sito del modulo, clicca **Compila**.
+- **Computer con Chrome o Edge: l'estensione** (cartella [`estensione/`](estensione/)). Scrivi la password una volta e compili tutte le pagine del modulo: clic sull'icona, `Alt` + `Maiusc` + `K` o tasto destro → «Compila con Compilatutto». Per installarla prima della pubblicazione nel negozio: scarica `compilatutto-estensione.zip` dalla scheda «Siti web» dell'app, estrai la cartella, apri `chrome://extensions` (o `edge://extensions`), accendi «Modalità sviluppatore», «Carica estensione non pacchettizzata». Poi, nelle impostazioni dell'estensione, «Prendi i dati dall'app» (prende solo la copia cifrata) oppure apri il file `famiglia.compilatutto`.
+- **Computer, altri browser:** mostra la barra dei preferiti (`Ctrl` + `Maiusc` + `B`) e trascina lì il pulsante **Compila**. Sul sito del modulo, clicca **Compila**.
 - **Android (Chrome):** tocca «Copia il codice del pulsante», salva una pagina qualsiasi nei preferiti, modificala: nome **Compila**, indirizzo = il codice copiato. Sul modulo scrivi «Compila» nella barra degli indirizzi e tocca il preferito.
 
 I campi riconosciuti diventano verdi, quelli da completare a mano gialli. **Il modulo non viene mai inviato**: controlli e invii tu.

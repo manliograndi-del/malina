@@ -7,7 +7,7 @@ name: Pubblica Compilatutto
 on:
   push:
     branches: [main]
-    paths: ['app/**', '.github/workflows/pubblica-app.yml']
+    paths: ['app/**', 'estensione/**', '.github/workflows/pubblica-app.yml']
   workflow_dispatch:
 
 permissions:
@@ -41,6 +41,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # L'estensione si scarica dalla scheda «Siti web» dell'app
+      - run: cd estensione && zip -r -q ../app/compilatutto-estensione.zip .
       - uses: actions/upload-pages-artifact@v3
         with:
           path: app

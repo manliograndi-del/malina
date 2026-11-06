@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Compilatutto</title>
+<link rel="stylesheet" href="stile.css">
+</head>
+<body class="finestrella">
+<header class="testa">
+  <img src="icone/icona-32.png" alt="">
+  <strong>Compilatutto</strong>
+  <span id="stato" class="pillola">Chiusa</span>
+</header>
+
+<section id="vuoto" class="corpo" hidden>
+  <p>Per cominciare collega i dati della tua famiglia: li prendo dall'app Compilatutto o dal file <strong>famiglia.compilatutto</strong>. Restano cifrati sul tuo computer.</p>
+  <button id="btn-collega" class="primario" type="button">Collega i dati</button>
+</section>
+
+<form id="chiuso" class="corpo" autocomplete="off" hidden>
+  <label for="pw">Password di Compilatutto</label>
+  <input id="pw" type="password" autocomplete="off">
+  <p id="errore" class="errore" role="alert"></p>
+  <button id="btn-apri" class="primario" type="submit">Apri</button>
+  <p class="nota">Dopo la apri una volta sola: vale per tutte le pagine del modulo finché non si chiude da sola.</p>
+</form>
+
+<section id="aperto" class="corpo" hidden>
+  <div>
+    <label for="persona">Per chi compili</label>
+    <select id="persona"></select>
+  </div>
+  <button id="btn-compila" class="primario" type="button">Compila questa pagina</button>
+  <p id="esito" class="esito" aria-live="polite"></p>
+  <p class="nota">Pagina dopo pagina: tocca di nuovo «Compila», oppure premi <span class="chiave" id="scorciatoia">Alt+Maiusc+K</span> o usa il tasto destro.</p>
+  <p class="nota" id="scadenza"></p>
+  <div class="riga">
+    <button id="btn-blocca" type="button">Chiudi ora</button>
+    <button id="btn-impostazioni" class="collegamento" type="button">Impostazioni</button>
+  </div>
+</section>
+
+<script src="campi.js"></script>
+<script src="cassaforte.js"></script>
+<script src="comuni.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>
