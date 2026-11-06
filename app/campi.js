@@ -191,6 +191,8 @@ const CT = {
         'full name', 'fullname', 'sottoscritto', 'sottoscritta'] },
     { k: 'eta', e: 'Età', calc: true, seg: 'ETA', sin: ['eta', 'age'] },
     { k: 'luogo_data_nascita', e: 'Luogo e data di nascita', calc: true, sin: ['luogo data nascita'] },
+    { k: 'dug', e: 'Tipo di strada (via, piazza…)', calc: true,
+      sin: ['dug', 'via viale', 'tipo via', 'tipologia via', 'tipo strada', 'particella toponomastica', 'toponimo', 'qualificatore'] },
     { k: 'indirizzo_completo', e: 'Indirizzo completo', calc: true, seg: 'INDIRIZZO COMPLETO',
       sin: ['indirizzo completo', 'residenza completa', 'recapito completo'] },
     { k: 'tipo_documento', e: 'Tipo di documento', calc: true, tipo: 'doc', seg: 'TIPO DOCUMENTO',

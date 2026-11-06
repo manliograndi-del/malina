@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Compilatutto",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Compila i moduli sui siti con i dati della tua famiglia, cifrati e salvati solo sul tuo computer.",
   "icons": { "16": "icone/icona-16.png", "32": "icone/icona-32.png", "48": "icone/icona-48.png", "128": "icone/icona-128.png" },
   "action": {

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="it">
+<head><meta charset="utf-8"><title>Modulo con etichette dentro i campi</title></head>
+<body>
+<!-- Come il modulo rimborsi di Trenitalia: il nome del campo è il suo valore e si cancella quando ci clicchi; «Via, Viale» è un campo a parte. -->
+<form>
+  <input name="Carta" type="text" value="Codice CartaFRECCIA/X-GO" id="Carta" title="Codice CartaFRECCIA/X-GO" onfocus="if (this.value == 'Codice CartaFRECCIA/X-GO') {this.value=''};" data-atteso="Codice CartaFRECCIA/X-GO">
+  <input name="Nome" type="text" value="Nome *" id="Nome" title="Inserisci il Nome (dato obbligatorio)" onfocus="if (this.value == 'Nome *') {this.value=''};" data-atteso="Mario">
+  <input name="Cognome" type="text" value="Cognome *" id="Cognome" title="Inserisci il Cognome (dato obbligatorio)" onfocus="if (this.value == 'Cognome *') {this.value=''};" data-atteso="Rossi">
+  <input name="Email" type="text" value="E-mail *" id="Email" title="Inserisci l'indirizzo di Posta Elettronica (dato obbligatorio)" data-atteso="mario.rossi@example.com">
+  <input name="Ripeti_Email" type="text" value="Conferma E-mail *" id="Ripeti_Email" title="Conferma l'indirizzo di Posta Elettronica (dato obbligatorio)" data-atteso="mario.rossi@example.com">
+  <input name="Nazione" type="text" value="Nazione *" id="Nazione" title="Digita il nome della nazione (dato obbligatorio)" role="combobox" data-atteso="Italia">
+  <input name="Citta" type="text" value="Città *" id="Citta" title="Digita il nome della Città di residenza (dato obbligatorio)" data-atteso="Roma">
+  <input name="Provincia" type="text" value="Provincia *" id="Provincia" title="Digita la sigla della Provincia (dato obbligatorio)" data-atteso="RM">
+  <input name="Cap" type="text" value="Cap *" id="Cap" title="Digita il CAP di residenza (dato obbligatorio)" data-atteso="00183">
+  <input name="Dug" type="text" value="Via, Viale *" id="Dug" title="Seleziona Via, Viale, Piazza, ecc. (dato obbligatorio)" role="combobox" data-atteso="Via">
+  <input name="Indirizzo" type="text" value="Indirizzo *" id="Indirizzo" title="Inserisci l'Indirizzo di residenza (dato obbligatorio)" data-atteso="Appia Nuova">
+  <input name="Civico" type="text" value="Numero civico *" id="Civico" title="Inserisci il Numero Civico di residenza (dato obbligatorio)" data-atteso="12">
+  <input name="Cellulare" type="text" value="Cellulare" id="Cellulare" title="Inserisci il numero di Cellulare (dato facoltativo)" data-atteso="+39 333 1234567">
+  <input id="ConsensoSI" type="radio" name="Consenso" value="ConsensoSI" data-atteso="no">
+  <input id="ConsensoNO" type="radio" name="Consenso" value="ConsensoNO" data-atteso="no">
+</form>
+</body>
+</html>

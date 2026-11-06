@@ -286,6 +286,7 @@ function compilaModulo(P, F, opz) {
     return null;
   };
   const sessoDi = function (pers) { return grezzo(pers, 'sesso').toUpperCase().charAt(0); };
+  const STRADE = /^(via|viale|piazza|piazzale|piazzetta|corso|largo|vicolo|vico|strada|stradone|contrada|localit[aà]|frazione|borgo|lungomare|lungotevere|galleria|salita|traversa|circonvallazione|calle|rione|regione|quartiere)\s+/i;
   const conCivico = function (pers, via, civ) { return unisci([grezzo(pers, via), grezzo(pers, civ)], ', '); };
 
   // Valore «da mostrare» (date gg/mm/aaaa) del dato k di una persona; h = testo del campo
@@ -303,9 +304,15 @@ function compilaModulo(P, F, opz) {
       const inn = s.indexOf(' nome ');
       return (ic >= 0 && (inn < 0 || ic < inn)) ? unisci([grezzo(pers, 'cognome'), grezzo(pers, 'nome')], ' ') : unisci([grezzo(pers, 'nome'), grezzo(pers, 'cognome')], ' ');
     }
+    if (k === 'dug') {
+      const m = STRADE.exec(grezzo(pers, 'indirizzo'));
+      return m ? m[1] : '';
+    }
     if (k === 'indirizzo' || k === 'dom_indirizzo') {
       const civ = k === 'indirizzo' ? 'civico' : 'dom_civico';
       let r = (info.unisciCivico || has(h, ['civico', 'civ'])) ? conCivico(pers, k, civ) : grezzo(pers, k);
+      // C'è un campo a parte per «Via, Viale…»: qui va solo il nome della strada
+      if (info.senzaDug && k === 'indirizzo') { r = r.replace(STRADE, ''); }
       if (opz.doc) {
         const ult = h.split(' ').pop();
         if (/^(via|viale|piazza|piazzale|corso|largo|vicolo|strada|contrada|localita|frazione)$/.test(ult)) {
@@ -643,6 +650,7 @@ function compilaModulo(P, F, opz) {
     }
     add(el.getAttribute('aria-label'), 3);
     add(el.getAttribute('placeholder'), 2);
+    if (finto(el)) { add(el.value, 3); }
     add(el.getAttribute('title'), 2);
     add(el.getAttribute('name'), 2);
     add(el.id, 2);
@@ -726,7 +734,19 @@ function compilaModulo(P, F, opz) {
     }
     return false;
   };
+  // Moduli vecchio stile: il nome del campo è scritto come valore e si cancella quando ci clicchi
+  const finto = function (el) {
+    if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') { return false; }
+    const v = String(el.value || '').trim();
+    if (!v || v !== String(el.defaultValue || '').trim()) { return false; }
+    if (/this\.value/.test(String(el.getAttribute('onfocus') || '') + String(el.getAttribute('onclick') || ''))) { return true; }
+    if (/\*\s*$/.test(v)) { return true; }
+    const nv = norm(v).split(' ').filter(Boolean);
+    const attr = ' ' + norm([el.name, el.id, el.title].join(' ')) + ' ';
+    return nv.length > 0 && nv.every(function (t) { return attr.indexOf(' ' + t + ' ') >= 0; });
+  };
   const vuoto = function (el) {
+    if (finto(el)) { return true; }
     if (el.tagName === 'SELECT') {
       const o = el.options[el.selectedIndex];
       if (!o || o.value === '' || o.value === '-1') { return true; }
@@ -883,7 +903,8 @@ function compilaModulo(P, F, opz) {
     piano.forEach(function (p) {
       const el = p.el;
       const unisciCivico = !civiciSeparati.has((p.a.r || 'io') + p.a.k.replace('indirizzo', ''));
-      let val = valore(p.a, p.h, el, p.parte, { unisciCivico: unisciCivico });
+      const senzaDug = piano.some(function (q) { return q.a.k === 'dug' && (q.a.r || 'io') === (p.a.r || 'io'); });
+      let val = valore(p.a, p.h, el, p.parte, { unisciCivico: unisciCivico, senzaDug: senzaDug });
       if (!val) { daFare.push(el); return; }
       if (el.tagName === 'SELECT') {
         const i = sceltaTra(Array.prototype.map.call(el.options, function (o) { return [o.text, o.value]; }), candidati(p.a, p.parte, val));

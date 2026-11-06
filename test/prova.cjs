@@ -94,7 +94,7 @@ function leggiAttesi(attr) {
 
   // 1. Motore sui moduli di esempio
   const casi = [['moderno.html', 'p-io', 'data-atteso'], ['tabella.html', 'p-io', 'data-atteso'], ['relazioni.html', 'p-io', 'data-atteso'],
-    ['inglese.html', 'p-io', 'data-atteso'], ['scuola.html', 'p-io', 'data-io'], ['scuola.html', 'p-lc', 'data-figlio']];
+    ['inglese.html', 'p-io', 'data-atteso'], ['finti.html', 'p-io', 'data-atteso'], ['scuola.html', 'p-io', 'data-io'], ['scuola.html', 'p-lc', 'data-figlio']];
   for (const c of casi) {
     console.log('Modulo ' + c[0] + ' compilato per ' + c[1]);
     await page.goto(base + '/test/moduli/' + c[0]);
