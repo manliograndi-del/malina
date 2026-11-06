@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compilatutto – privacy</title>
+<meta name="description" content="Come Compilatutto tratta i dati: restano cifrati sul dispositivo e non vengono inviati a nessuno.">
+<link rel="icon" href="icone/icona.svg" type="image/svg+xml">
+<link rel="stylesheet" href="stile.css">
+</head>
+<body>
+<main class="contenuto" style="max-width:720px;padding-block:32px 48px;display:grid;gap:16px">
+  <h1>Compilatutto: privacy</h1>
+  <p class="guida">Vale per l'app Compilatutto e per l'estensione Compilatutto per Chrome ed Edge. Ultimo aggiornamento: 6 novembre 2026.</p>
+
+  <section class="foglio">
+    <h2>In breve</h2>
+    <ul class="passi">
+      <li>I dati che scrivi (anagrafica, documenti, contatti, familiari, veicoli) restano <strong>sul tuo dispositivo</strong>, cifrati con la tua password (AES-GCM a 256 bit, chiave ricavata con PBKDF2-SHA256).</li>
+      <li>Compilatutto <strong>non ha server</strong>, non ha account, non usa statistiche, pubblicità o servizi esterni. Nessun dato viene inviato agli autori o ad altri.</li>
+      <li>I dati vengono scritti solo nei moduli che scegli tu di compilare, quando tocchi «Compila» o scegli un dato dall'elenco. Il modulo non viene mai inviato da solo.</li>
+    </ul>
+  </section>
+
+  <section class="foglio">
+    <h2>Estensione per Chrome ed Edge</h2>
+    <ul class="passi">
+      <li><strong>Memoria locale dell'estensione</strong> (<code>chrome.storage.local</code>): una copia cifrata dei dati, presa dall'app o dal file che scegli. Senza password non è leggibile.</li>
+      <li><strong>Memoria temporanea</strong> (<code>chrome.storage.session</code>): i dati aperti dopo la password. Resta solo in memoria, non è accessibile alle pagine web e si cancella dopo i minuti scelti o alla chiusura del browser.</li>
+      <li><strong>Accesso alla scheda attiva</strong> (<code>activeTab</code>, <code>scripting</code>): solo quando tocchi l'icona, usi la scorciatoia o il menu col tasto destro, per riempire i campi del modulo aperto.</li>
+      <li><strong>Accesso all'app</strong> (<code>manliograndi-del.github.io</code>): solo per leggere la copia cifrata dei dati quando tocchi «Prendi i dati dall'app».</li>
+      <li><strong>Menu, sveglia</strong> (<code>contextMenus</code>, <code>alarms</code>): la voce «Compila con Compilatutto» e la chiusura automatica.</li>
+    </ul>
+  </section>
+
+  <section class="foglio">
+    <h2>Cosa vede il sito che compili</h2>
+    <p>Il sito riceve i valori inseriti nei suoi campi, come se li avessi scritti tu. Non vede la password né gli altri dati. Usa Compilatutto solo su siti di cui ti fidi.</p>
+  </section>
+
+  <section class="foglio">
+    <h2>Cancellare i dati</h2>
+    <p>Nell'estensione: Impostazioni → «Scollega i dati», oppure rimuovi l'estensione. Nell'app: Sicurezza → «Cancella da questo browser». Il file <code>famiglia.compilatutto</code> sul tuo computer lo cancelli tu, come qualsiasi file.</p>
+  </section>
+
+  <section class="foglio" lang="en">
+    <h2>English summary</h2>
+    <p>Compilatutto stores the data you enter only on your device, encrypted with your password (AES-GCM 256, PBKDF2-SHA256). It has no server, no account, no analytics and sends no data to anyone. The browser extension keeps an encrypted copy in <code>chrome.storage.local</code>, keeps unlocked data only in memory (<code>chrome.storage.session</code>, cleared after a timeout or when the browser closes) and writes values only into the form on the active tab when you click the icon, use the shortcut or the context menu. Its host permission is used only to read the encrypted copy from the Compilatutto web app when you ask it to.</p>
+  </section>
+
+  <p class="nota">Contatti: tramite <a href="https://github.com/manliograndi-del/malina/issues">github.com/manliograndi-del/malina</a>.</p>
+</main>
+</body>
+</html>
