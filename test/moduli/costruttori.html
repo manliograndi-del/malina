@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="it">
+<head><meta charset="utf-8"><title>Moduli fatti con Jotform, Tally e simili</title></head>
+<body>
+<!-- Schemi trovati su moduli veri (Jotform, Tally, IKEA): sottoetichette, date e telefoni divisi, maschere, email come nome utente. -->
+<form>
+  <h2>Dati del richiedente</h2>
+  <div><label id="label_1" for="first_1">Nome e Cognome*</label>
+    <input id="first_1" name="q1_nome[first]" autocomplete="section-input_1 given-name" aria-labelledby="sublabel_1_first" data-atteso="Mario"><label id="sublabel_1_first">Nome</label>
+    <input name="q1_nome[last]" autocomplete="section-input_1 family-name" aria-labelledby="sublabel_1_last" data-atteso="Rossi"><label id="sublabel_1_last">Cognome</label></div>
+  <div><label id="label_2">Data di nascita*</label>
+    <input type="tel" name="q2_data[day]" maxlength="2" aria-labelledby="label_2 sublabel_2_day" data-atteso="12"><label id="sublabel_2_day">Giorno</label>
+    <input type="tel" name="q2_data[month]" maxlength="2" aria-labelledby="label_2 sublabel_2_month" data-atteso="03"><label id="sublabel_2_month">Mese</label>
+    <input type="tel" name="q2_data[year]" maxlength="4" aria-labelledby="label_2 sublabel_2_year" data-atteso="1980"><label id="sublabel_2_year">Anno</label></div>
+  <div><label id="label_3">Scadenza del documento</label>
+    <input id="lite_mode_3" aria-labelledby="label_3" placeholder="MM-DD-YYYY" data-format="mmddyyyy" data-seperator="-" data-atteso="03-12-2032"></div>
+  <div><label id="label_4">Numero di cellulare*</label>
+    <input type="tel" name="q4_tel[country]" autocomplete="section-input_4 tel-country-code" data-component="countryCode" aria-labelledby="label_4 sublabel_4_country" data-atteso="+39"><label id="sublabel_4_country">Prefisso Nazionale</label>
+    <input type="tel" name="q4_tel[area]" autocomplete="section-input_4 tel-area-code" data-component="areaCode" aria-labelledby="label_4 sublabel_4_area" data-atteso="333"><label id="sublabel_4_area">Prefisso</label>
+    <input type="tel" name="q4_tel[phone]" autocomplete="section-input_4 tel-local" data-component="phone" aria-labelledby="label_4 sublabel_4_phone" data-atteso="1234567"><label id="sublabel_4_phone">Numero di Telefono</label></div>
+  <div><label id="label_5">Documento presentato</label>
+    <input type="radio" name="q5_doc" value="Carta d'identità" id="d1" data-atteso="no"><label for="d1">Carta d'identità</label>
+    <input type="radio" name="q5_doc" value="Altro" id="d2" data-atteso="no"><label for="d2">Altro</label>
+    <input type="text" name="q5_doc[other]" aria-labelledby="label_5" data-atteso=""></div>
+  <div><label for="em">E-mail (nome utente)</label><input type="email" id="em" name="email" autocomplete="email" data-atteso="mario.rossi@example.com"></div>
+  <div><label for="ind">Via, CAP, Città, Provincia</label><textarea id="ind" data-atteso="Via Appia Nuova, 12, 00183 Roma (RM)"></textarea></div>
+  <div><label for="td">Tipo documento identità</label><input id="td" data-atteso="Carta d'identità elettronica"></div>
+  <div><label for="nd">Numero documento identità</label><input id="nd" data-atteso="CA12345AB"></div>
+  <h2>Dati del minore</h2>
+  <div><label for="mn">Nome del minore</label><input id="mn" data-atteso="Luca"></div>
+  <div><label for="mc">Cognome del minore</label><input id="mc" data-atteso="Rossi"></div>
+  <div><label for="me">Email*</label><input type="email" id="me" data-atteso="mario.rossi@example.com"></div>
+  <div><label id="label_9">Cellulare</label>
+    <input type="tel" name="q9_tel[full]" aria-labelledby="label_9" placeholder="(000) 000-0000" maskvalue="(###) ###-####" data-atteso="(333) 123-4567"></div>
+</form>
+<form>
+  <fieldset><legend>Cellulare (Facoltativo)</legend>
+    <label for="pr">Prefisso internazionale</label>
+    <select id="pr" data-atteso="+39"><option value="+39">IT (+39)</option><option value="+33">FR (+33)</option><option value="+49">DE (+49)</option></select>
+    <span>+39</span><input type="tel" id="cel" name="phoneNumber" autocomplete="tel-national" aria-label="Telefono" data-atteso="333 1234567">
+  </fieldset>
+</form>
+</body>
+</html>

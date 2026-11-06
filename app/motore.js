@@ -49,6 +49,7 @@ function compilaModulo(P, F, opz) {
     R[k].forEach(function (w) { if (w.indexOf(' ') < 0) { SOLO_RUOLO.add(w); } });
   });
   const SALTA = lista(F.salta);
+  const SALTA_DURI = SALTA.filter(function (w) { return ['utente', 'user', 'username', 'login', 'account'].indexOf(w) < 0; });
   const ORG = lista(F.org);
   const CONFERMA = lista(F.conferma);
   const ALTRI_DOC = opz.doc ? lista(F.altriDoc) : [];
@@ -171,7 +172,8 @@ function compilaModulo(P, F, opz) {
   // Risultato: { k, r } oppure { salta: true } (campo da lasciare stare) oppure null (non capito).
   const analizza = function (indizi, ctx, forzato) {
     const tutto = indizi.map(function (h) { return h[0]; }).join(' | ');
-    if (has(tutto, SALTA)) { return { salta: true }; }
+    // «E-mail (nome utente)» nelle iscrizioni: l'email si compila, il resto delle parole d'accesso no
+    if (has(tutto, SALTA) && !(has(tutto, ['email', 'mail', 'e mail']) && !has(tutto, SALTA_DURI))) { return { salta: true }; }
     const catOwn = categoria(tutto);
     const cat = catOwn || categoria(ctx);
     if (cat === 'altro') { return { salta: true }; }
@@ -263,10 +265,49 @@ function compilaModulo(P, F, opz) {
     const ph = el && el.getAttribute ? String(el.getAttribute('placeholder') || '').toLowerCase() : '';
     let r = /(gg|dd)\s*([\/.\-])\s*(mm)\s*[\/.\-]\s*(aaaa|yyyy|aa|yy)/.exec(ph);
     if (r) { return g + r[2] + me + r[2] + (r[4].length === 2 ? a.slice(2) : a); }
+    r = /(mm)\s*([\/.\-])\s*(gg|dd)\s*[\/.\-]\s*(aaaa|yyyy|aa|yy)/.exec(ph);
+    if (r) { return me + r[2] + g + r[2] + (r[4].length === 2 ? a.slice(2) : a); }
     r = /(aaaa|yyyy)\s*([\/.\-])\s*(mm)/.exec(ph);
     if (r) { return a + r[2] + me + r[2] + g; }
     if (el && el.maxLength === 8) { return g + me + a; }
     return g + '/' + me + '/' + a;
+  };
+  // Telefono diviso in più caselle (prefisso internazionale, prefisso, numero) o con una maschera come «(000) 000-0000»
+  const parteTel = function (el) {
+    if (el.tagName === 'SELECT') {
+      const pref = Array.prototype.filter.call(el.options, function (o) { return /\+\s?\d{1,3}\b/.test(o.text + ' ' + o.value); });
+      if (pref.length > el.options.length / 2) { return 'paese'; }
+    }
+    const t = [el.getAttribute('autocomplete'), el.getAttribute('data-component'), el.name].join(' ');
+    if (/country-code|countrycode|\[country\]/i.test(t)) { return 'paese'; }
+    if (/area-code|areacode|\[area\]/i.test(t)) { return /^\s*\+/.test(String(el.getAttribute('placeholder') || '')) ? 'paese' : 'area'; }
+    if (/tel-local\b|\[phone\]/i.test(t)) { return 'locale'; }
+    return '';
+  };
+  const telefonoPer = function (val, el, parte, conArea) {
+    const v = String(val || '').trim();
+    const pm = /^(\+|00)(\d{1,3})[\s.\-]*/.exec(v);
+    const paese = pm ? pm[2] : '39';
+    const naz = pm ? v.slice(pm[0].length) : v;
+    const cifre = naz.replace(/\D/g, '');
+    const pezzi = naz.split(/[\s.\-\/]+/).filter(Boolean);
+    const area = pezzi.length > 1 ? pezzi[0].replace(/\D/g, '') : cifre.slice(0, 3);
+    if (parte === 'paese') { return '+' + paese; }
+    if (parte === 'area') { return area; }
+    if (parte === 'locale') { return conArea ? cifre.slice(area.length) : cifre; }
+    // Prefisso internazionale già scritto o da scegliere accanto al campo: qui va solo il numero
+    const box = el.closest('fieldset') || (el.parentElement && el.parentElement.parentElement && el.parentElement.parentElement.parentElement);
+    if (pm && box && box !== el.ownerDocument.body && /(^|\s)\+\s?\d{1,3}\b/.test(String(box.textContent || '').replace(/\(\+\d+\)/g, ' +1 ')) &&
+      !/(^|\s)\+\s?\d{1,3}\b/.test(String(el.getAttribute('placeholder') || ''))) { return naz.trim(); }
+    const mk = String(el.getAttribute('maskvalue') || el.getAttribute('data-mask') || el.getAttribute('placeholder') || '').trim();
+    const posti = (mk.match(/[#09]/g) || []).length;
+    if (/^[()\s+\-.#09]+$/.test(mk) && posti >= 7) {
+      const tutte = (paese + cifre).length === posti && cifre.length !== posti ? paese + cifre : cifre;
+      if (tutte.length !== posti) { return cifre; }
+      let i = 0;
+      return mk.replace(/[#09]/g, function () { return tutte[i++]; });
+    }
+    return v;
   };
   const grezzo = function (pers, k) {
     if (!pers) { return ''; }
@@ -366,7 +407,9 @@ function compilaModulo(P, F, opz) {
   };
   // Valore adatto al campo del modulo (formato della data, parte di data)
   const valore = function (a, h, el, parte, info) {
-    const pers = personaDi(a.r);
+    let pers = personaDi(a.r);
+    // Moduli per i minori: email e telefono, se il figlio non li ha, sono quelli del genitore che compila
+    if (a.r === 'figlio' && /^(email|pec|telefono|telefono_fisso)$/.test(a.k) && pers && !grezzo(pers, a.k)) { pers = personaDi('genitore'); }
     let k = a.k;
     if (k === 'data_rilascio' || k === 'scadenza_documento') {
       const d = docPrincipale(pers);
@@ -688,7 +731,7 @@ function compilaModulo(P, F, opz) {
 
   const AUTO = {
     'given-name': 'nome', 'family-name': 'cognome', name: 'nome_completo', email: 'email', tel: 'telefono',
-    'tel-national': 'telefono', mobile: 'telefono', 'postal-code': 'cap', 'street-address': 'indirizzo',
+    'tel-national': 'telefono', 'tel-country-code': 'telefono', 'tel-area-code': 'telefono', 'tel-local': 'telefono', mobile: 'telefono', 'postal-code': 'cap', 'street-address': 'indirizzo',
     'address-line1': 'indirizzo', 'address-level2': 'citta', 'address-level1': 'provincia', 'country-name': 'nazione',
     country: 'nazione', bday: 'data_nascita', 'bday-day': 'data_nascita:g', 'bday-month': 'data_nascita:m',
     'bday-year': 'data_nascita:a', sex: 'sesso', 'organization-title': 'professione',
@@ -827,7 +870,12 @@ function compilaModulo(P, F, opz) {
     raccogli(radice);
 
     const haCellulare = elementi.some(function (e) {
-      return /cellulare|mobile/i.test([e.name, e.id, e.title, e.getAttribute('placeholder'), e.getAttribute('aria-label'), e.value].join(' '));
+      const lb = String(e.getAttribute('aria-labelledby') || '').split(/\s+/).map(function (id) {
+        const n = id && e.ownerDocument.getElementById(id);
+        return n ? n.textContent : '';
+      });
+      const et = e.labels && e.labels[0] ? e.labels[0].textContent : '';
+      return /cellulare|mobile/i.test([e.name, e.id, e.title, e.getAttribute('placeholder'), e.getAttribute('aria-label'), e.value, et].concat(lb).join(' '));
     });
     const usati = new Set();
     const piano = [];
@@ -848,8 +896,11 @@ function compilaModulo(P, F, opz) {
       }
       if (el.tagName === 'INPUT' && NON_TESTO.test(tipo)) { return; }
       if (!visibile(el)) { return; }
+      // La casella «Altro» accanto alle scelte: si lascia a chi compila
+      if (/\[other\]$|_other$/i.test(String(el.name || el.id || ''))) { return; }
       const H = indiziDi(el);
       const h = H.map(function (x) { return x[0]; }).join(' ');
+      const forti = H.filter(function (x) { return x[1] >= 3; }).map(function (x) { return x[0]; }).join(' ');
       const auto = daAuto(el).split(':');
       const ctx = contesto(el);
       let a = analizza(H, ctx, auto[0] || null);
@@ -859,11 +910,19 @@ function compilaModulo(P, F, opz) {
         else if (tipo === 'tel') { a = analizza(H, ctx, 'telefono'); }
       }
       if (a && a.salta) { ultimaData = null; precedente = null; return; }
+      // Un solo campo per «Via, CAP, Città, Provincia»: l'indirizzo intero
+      if (a && /^(indirizzo|civico|cap|citta|provincia)$/.test(a.k)) {
+        const pezzi = ['via', 'indirizzo', 'civico', 'cap', 'citta', 'comune', 'provincia', 'prov'].filter(function (w) { return has(forti || h, [w]); });
+        if (pezzi.length >= 3) { a = { k: 'indirizzo_completo', r: a.r }; }
+      }
       // «Telefono» e «Cellulare» nello stesso modulo: il cellulare va nel suo campo, il fisso in «Telefono»
-      if (a && a.k === 'telefono' && haCellulare && !has(h, ['cellulare', 'cell', 'mobile', 'smartphone'])) { a = { k: 'telefono_fisso', r: a.r }; }
-      if (a && DATE.has(a.k) && !parte) { parte = parteData(h) || (el.tagName === 'SELECT' ? parteDaOpzioni(el) : ''); }
+      if (a && a.k === 'telefono' && !has(forti + ' ' + ctx, ['cellulare', 'cell', 'mobile', 'smartphone']) &&
+        (haCellulare || has(forti, ['fisso', 'casa', 'abitazione']))) { a = { k: 'telefono_fisso', r: a.r }; }
+      if (a && (a.k === 'telefono' || a.k === 'telefono_fisso') && !parte) { parte = parteTel(el); }
+      // Giorno, mese e anno separati: conta prima l'etichetta del campo, poi il testo vicino
+      if (a && DATE.has(a.k) && !parte) { parte = parteData(forti) || parteData(h) || (el.tagName === 'SELECT' ? parteDaOpzioni(el) : ''); }
       if (!a && ultimaData && (el.tagName === 'SELECT' || (el.maxLength > 0 && el.maxLength <= 4))) {
-        const pd = parteData(h) || parteDaOpzioni(el);
+        const pd = parteData(forti) || parteData(h) || parteDaOpzioni(el);
         if (pd && !usati.has((ultimaData.r || 'io') + ':' + ultimaData.k + ':' + pd)) { a = { k: ultimaData.k, r: ultimaData.r }; parte = pd; }
       }
       // Etichette brevi che dipendono dal campo precedente: «Via ___ n. ___», «Rilasciato da ___ il ___»
@@ -921,6 +980,10 @@ function compilaModulo(P, F, opz) {
           if (el.type === 'number') { val = val.replace(/[^\d]/g, ''); }
           if (max && val.length > max) { val = val.replace(/[\s.\-\/()]/g, ''); }
           if (max && val.length > max) { val = val.replace(/^(\+39|0039)/, ''); }
+          if (el.type !== 'number') {
+            const conArea = piano.some(function (q) { return q.parte === 'area' && q.a.k === p.a.k && (q.a.r || 'io') === (p.a.r || 'io'); });
+            val = telefonoPer(val, el, p.parte, conArea);
+          }
         }
         if (el.maxLength > 0 && val.length > el.maxLength) { daFare.push(el); return; }
       }
