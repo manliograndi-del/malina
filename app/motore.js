@@ -446,6 +446,8 @@ function compilaModulo(P, F, opz) {
       scelto = s[1];
       lun = ft.length;
     });
+    // «di essere padre di ___», «madre di ___»: si parla del figlio
+    if (/\b(padre|madre|genitore|genitori)\s+(di|del|della)\s*$/i.test(String(prima || '').trim())) { scelto = 'figlio:nome_completo'; lun = 2; }
     let a = null;
     if (scelto === '@n') {
       if (prec.k === 'indirizzo') { a = { k: 'civico', r: prec.r }; }
@@ -458,6 +460,13 @@ function compilaModulo(P, F, opz) {
     } else if (scelto) {
       a = daChiave(scelto);
     }
+    // «passaporto n. ___ rilasciato da ___ il ___ valido fino al ___»: i dati di quel documento
+    const doc = /^(ci|passaporto|patente|permesso)_/.exec(prec.k || '');
+    if (a && doc && /^(rilasciato_da|data_rilascio|scadenza_documento)$/.test(a.k)) {
+      const DOCK = { rilasciato_da: { ci: 'ci_comune', passaporto: 'passaporto_rilascio', patente: 'patente_rilascio', permesso: 'permesso_rilascio' } };
+      const k2 = a.k === 'rilasciato_da' ? DOCK.rilasciato_da[doc[1]] : doc[1] + (a.k === 'data_rilascio' ? '_data_rilascio' : '_scadenza');
+      a = { k: k2, r: prec.r, fisso: true };
+    }
     if (a && !a.fisso) {
       // «il coniuge nato a ___»: le parole prima della frase (e la frase stessa) dicono di chi si parla
       const zona = tok.slice(Math.max(0, tok.length - lun - 3)).join(' ');
@@ -466,6 +475,9 @@ function compilaModulo(P, F, opz) {
         const r = ruoloDi(cat);
         if (r === null) { return null; }
         a = { k: a.k, r: r };
+      } else if (prec.r && /^(luogo_nascita|provincia_nascita|data_nascita|codice_fiscale)$/.test(a.k)) {
+        // «coniugato con ___ nata a ___ il ___»: nascita e codice fiscale sono della persona appena nominata
+        a = { k: a.k, r: prec.r };
       }
     }
     if (!a && !tok.length && prec.k) {
@@ -602,6 +614,14 @@ function compilaModulo(P, F, opz) {
     return punti.map(function (x) { return voci[x[1]]; });
   };
 
+  const VOCI = new Set();
+  CAMPI.forEach(function (c) {
+    c.sin.forEach(function (sn) { sn[0].split(' ').forEach(function (w) { VOCI.add(w); }); });
+    norm(c.e).split(' ').forEach(function (w) { VOCI.add(w); });
+    norm(c.seg || '').split(' ').forEach(function (w) { VOCI.add(w); });
+  });
+  ['padre', 'madre', 'coniuge', 'genitore', 'figlio'].forEach(function (k) { R[k].forEach(function (x) { x.split(' ').forEach(function (w) { VOCI.add(w); }); }); });
+  ['altro', 'altra', 'altri', 'altre', 'compagnia', 'ufficio', 'ente', 'societa', 'ditta', 'destinatario'].forEach(function (w) { VOCI.delete(w); });
   if (opz.api) {
     return {
       norm: norm,
@@ -613,6 +633,10 @@ function compilaModulo(P, F, opz) {
       valore: function (a, testo, info) { return a ? calcola(a.k, personaDi(a.r), norm(testo || ''), info) : ''; },
       valoreIso: function (a) { return a ? (VEIC_K.has(a.k) ? String((veicolo && veicolo.d[a.k]) || '') : grezzo(personaDi(a.r), a.k)) : ''; },
       spazio: spazio,
+      // Segnaposto scritto in parole: tutte devono essere parole dei dati («[Data del sinistro]» no, «[Nome coniuge]» sì)
+      spiegato: function (testo) {
+        return norm(testo).split(' ').filter(Boolean).every(function (w) { return VOCI.has(w); });
+      },
       opzione: function (a, testi) { return a ? sceltaTra(testi, candidati(a, '', calcola(a.k, personaDi(a.r), '', {}))) : -1; },
       opzioneValore: function (valoreTesto, testi) { return sceltaTra(testi, [norm(valoreTesto)]); },
       elenco: elenco,

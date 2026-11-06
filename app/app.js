@@ -1198,7 +1198,7 @@
       return;
     }
     if (!fam) { return; }
-    if (r.errore === 'protetto') { statoPdf('Il PDF è protetto da password: aprilo con Acrobat Reader, oppure chiedi una versione senza protezione.'); return; }
+    if (r.errore === 'protetto') { statoPdf('«' + f.name + '» è protetto contro le modifiche (succede con molti moduli INPS) e qui non posso scriverci. Aprilo con Acrobat Reader o con Edge e incolla i dati da «Cerca e copia».'); return; }
     if (r.errore) { statoPdf('Non riesco a leggere «' + f.name + '»: forse il file è rovinato.'); return; }
     if (!r.campi.length) {
       statoPdf('«' + f.name + '» non ha campi da compilare' + (r.xfa
@@ -1390,9 +1390,12 @@
         if (m[3]) {
           a = A.spazio(prima, prec);
           descr = prima;
+          // «______, lì ______»: prima di «lì» va il luogo
+          if (!a && /^\s*,?\s*l[iì](?![a-zà-ú])/i.test(t.slice(m.index + m[0].length))) { a = A.riconosci('luogo'); }
         } else {
           if (!/[a-zà-ú]/i.test(interno)) { continue; }
-          a = A.riconosci(interno);
+          // In maiuscolo sono i segnaposti di Compilatutto; scritti a parole valgono solo se ogni parola è un dato
+          a = /[a-zà-ú]/.test(interno) && !A.spiegato(interno) ? null : A.riconosci(interno);
           descr = interno;
         }
         trovati.push({ nodo: n, da: m.index, a: m.index + m[0].length, dato: a, orig: m[0], descr: descr });
@@ -1446,6 +1449,7 @@
       const prima = nd.nodeValue;
       let t = prima.replace(/\b([Ii])l\s?\/\s?([Ll])a\b/g, function (x, i) { conta++; return f ? (i === 'I' ? 'La' : 'la') : (i === 'I' ? 'Il' : 'il'); });
       t = t.replace(/\b([A-Za-zÀ-ÿ]+)o\s?\/\s?a\b/g, function (x, radice) { conta++; return radice + (f ? 'a' : 'o'); });
+      t = t.replace(/\b([Nn])at_{1,3}(?=\s|$)/g, function (x, n) { conta++; return n + 'at' + (f ? 'a' : 'o'); });
       t = t.replace(/\b(celibe)\s?\/\s?(nubile)\b/gi, function (x, c, nb) { conta++; return f ? nb : c; });
       if (t !== prima) { nd.nodeValue = t; }
     });

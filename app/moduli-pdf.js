@@ -40,8 +40,13 @@ const ModuliPdf = (function () {
       if (/encrypt/i.test(String(e && e.message))) { return { errore: 'protetto' }; }
       return { errore: 'illeggibile' };
     }
+    // XFA va guardato prima di getForm(), che lo toglie
+    let xfa = false;
+    try {
+      const af = doc.catalog.lookup(L.PDFName.of('AcroForm'));
+      xfa = !!(af && af.get && af.get(L.PDFName.of('XFA')));
+    } catch (e) { xfa = false; }
     const form = doc.getForm();
-    const xfa = typeof form.hasXFA === 'function' && form.hasXFA();
     const pagine = doc.getPages();
     const campi = [];
     form.getFields().forEach(function (f) {
@@ -80,10 +85,35 @@ const ModuliPdf = (function () {
   // Propone un valore per ogni campo usando il motore (api di compilaModulo)
   function proponi(campi, api) {
     let precedente = null;
+    // Sezioni per chi vive all'estero (es. «quadroD stato estero»): i loro campi di residenza restano vuoti per chi vive in Italia
+    const gruppo = function (c) { return String(c.breve).split(/[\s_.]+/)[0].toLowerCase(); };
+    const esteri = new Set(campi.filter(function (c) { return /\bester[oa]\b|\bforeign\b|\babroad\b/.test(api.norm(c.breve + ' ' + c.descr)); }).map(gruppo));
+    // Serie numerate come «codice fiscale 1 … 4»: valgono per scelte diverse del modulo, le sceglie chi compila
+    const radice = function (c) {
+      const m = /^(.*\D)\s*\d+$/.exec(String(c.breve).trim());
+      const r = m ? m[1].trim().toLowerCase() : '';
+      return c.descr || /^(text|testo|campo|campo di testo|field|casella|casella di controllo|check ?box)$/.test(r) ? '' : r;
+    };
+    const conta = {};
+    campi.forEach(function (c) { const r = radice(c); if (r) { conta[r] = (conta[r] || 0) + 1; } });
+    // Menu con «Via, Piazza, Viale…»: è il tipo di strada, e allora l'indirizzo va senza
+    const menuStrade = function (c) {
+      const o = (c.opzioni || []).map(function (x) { return api.norm(x); });
+      return (c.tipo === 'menu' || c.tipo === 'scelta') && o.indexOf('via') >= 0 && o.indexOf('piazza') >= 0;
+    };
+    const conDug = campi.some(function (c) {
+      if (c.solaLettura) { return false; }
+      if (menuStrade(c)) { return true; }
+      const a = api.riconosciIndizi([[c.descr, 3], [c.breve, 2]], '');
+      return a && a.k === 'dug';
+    });
     return campi.map(function (c) {
       if (c.solaLettura) { return { a: null, valore: '' }; }
+      if (c.tipo === 'testo' && conta[radice(c)] > 1) { return { a: null, valore: '' }; }
       const indizi = [[c.descr, 3], [c.breve, 2]];
-      let a = api.riconosciIndizi(indizi, '');
+      let a = menuStrade(c) ? { k: 'dug', r: '' } : api.riconosciIndizi(indizi, '');
+      if (a && esteri.has(gruppo(c)) && /^(indirizzo|civico|cap|citta|provincia|nazione|indirizzo_completo)$/.test(a.k) &&
+        /^ital/.test(api.norm(api.valore({ k: 'nazione', r: a.r }, '') || 'italia'))) { a = null; }
       // «Via ___ N. ___», «Nato a ___ Prov. ___»: come sulle pagine web
       const corto = api.norm(c.descr || c.breve);
       if (!a && precedente) {
@@ -112,8 +142,22 @@ const ModuliPdf = (function () {
         const i = api.opzione(a, c.opzioni);
         return { a: a, valore: i >= 0 ? c.opzioni[i] : '' };
       }
-      return { a: a, valore: api.valore(a, c.descr || c.breve) };
+      // Codice fiscale in 11 caselline: è quello di una società o di un ente
+      if (a.k === 'codice_fiscale' && c.max === 11) { return { a: null, valore: '' }; }
+      return { a: a, valore: adatta(api.valore(a, c.descr || c.breve, { senzaDug: conDug }), c.max) };
     });
+  }
+
+  // Caselline a numero fisso (codice fiscale, data in 8 caselle): il valore senza spazi e separatori
+  function adatta(val, max) {
+    const v = String(val || '');
+    if (!max || v.length <= max) { return v; }
+    const d = /^(\d{2})[\/.\-](\d{2})[\/.\-](\d{4})$/.exec(v);
+    if (d) { return max >= 8 ? d[1] + d[2] + d[3] : d[1] + d[2] + d[3].slice(2); }
+    const compatto = v.replace(/[\s.\-\/()]/g, '');
+    if (compatto.length <= max) { return compatto; }
+    const senzaPrefisso = compatto.replace(/^(\+39|0039)/, '');
+    return senzaPrefisso.length <= max ? senzaPrefisso : v;
   }
 
   // Scrive i valori e restituisce il PDF compilato

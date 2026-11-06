@@ -306,7 +306,7 @@ const CT = {
     ['sottoscritto', 'nome_completo'], ['sottoscritta', 'nome_completo'], ['sottoscritto a', 'nome_completo'],
     ['nome cognome', 'nome_completo'], ['cognome nome', 'nome_completo'], ['generalita', 'nome_completo'],
     ['nome', 'nome'], ['cognome', 'cognome'],
-    ['nato a', 'luogo_nascita'], ['nata a', 'luogo_nascita'], ['nato a a', 'luogo_nascita'],
+    ['nato a', 'luogo_nascita'], ['nata a', 'luogo_nascita'], ['nato a a', 'luogo_nascita'], ['nat a', 'luogo_nascita'],
     ['luogo nascita', 'luogo_nascita'], ['comune nascita', 'luogo_nascita'],
     ['nato il', 'data_nascita'], ['nata il', 'data_nascita'], ['nato a il', 'data_nascita'], ['data nascita', 'data_nascita'],
     ['il', '@il'],

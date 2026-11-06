@@ -218,13 +218,31 @@ function leggiAttesi(attr) {
       prec = a;
       ultimo = m.index + m[0].length;
     }
-    return { seg: seg, famiglia: famiglia, auto: out + testo.slice(ultimo) };
+    const auto1 = out + testo.slice(ultimo);
+    const testo2 = 'coniugato/a con ______ nata il ______; di essere padre di ______, codice fiscale ______; passaporto n. ______ valido fino al ______.';
+    re.lastIndex = 0;
+    ultimo = 0;
+    prec = null;
+    let out2 = '';
+    while ((m = re.exec(testo2))) {
+      const prima = testo2.slice(ultimo, m.index);
+      const a = A.spazio(prima, prec);
+      out2 += prima + (a ? A.valore(a, prima, {}) : '[?]');
+      prec = a;
+      ultimo = m.index + m[0].length;
+    }
+    const spiegati = ['Data del sinistro', 'Indirizzo della compagnia', 'Targa dell\'altro veicolo', 'Nome coniuge', 'Codice fiscale del figlio']
+      .map(function (x) { return A.spiegato(x) ? 'si' : 'no'; }).join(',');
+    return { seg: seg, famiglia: famiglia, auto: auto1, auto2: out2 + testo2.slice(ultimo), spiegati: spiegati };
   }, FAMIGLIA);
   lettere.seg.forEach(function (r) { controlla('[' + r[0] + ']', r[1], r[2]); });
   Object.keys(lettere.famiglia).forEach(function (k) { controlla('[' + k + ']', lettere.famiglia[k][0], lettere.famiglia[k][1]); });
   controlla('autocertificazione', lettere.auto, 'Il/La sottoscritto/a Mario Rossi nato/a a Roma (RM) il 12/03/1980, codice fiscale RSSMRA80C12H501E, ' +
     'residente a Roma (RM) in via Appia Nuova n. 12, di essere figlio/a di Giuseppe Rossi e di Anna Bianchi, coniugato/a con Lucia Verdi, ' +
     'proprietario del veicolo targato AB123CD.');
+  controlla('autocertificazione: coniuge, figlio, passaporto', lettere.auto2, 'coniugato/a con Lucia Verdi nata il 01/01/1982; di essere padre di Luca Rossi, ' +
+    'codice fiscale RSSLCU15E20H501Q; passaporto n. YA1234567 valido fino al 15/01/2030.');
+  controlla('segnaposti scritti a parole', lettere.spiegati, 'no,no,no,si,si');
 
   // 5. PDF compilabile creato al momento
   console.log('Modulo PDF');
@@ -253,6 +271,17 @@ function leggiAttesi(attr) {
     const menu = form.createDropdown('Provincia');
     menu.addOptions(['MI', 'RM', 'TO']);
     menu.addToPage(pg, { x: 200, y: y, width: 80, height: 18 });
+    y -= 30;
+    // Come il modello AA4/8: data in 8 caselline, codici fiscali numerati, tipo di strada in un menu
+    testo('quadroB data di nascita');
+    form.getTextField('quadroB data di nascita').setMaxLength(8);
+    testo('codice fiscale 1');
+    testo('codice fiscale 2');
+    const strada = form.createDropdown('TIPOLOGIA');
+    strada.addOptions(['VIA', 'PIAZZA', 'VIALE']);
+    strada.addToPage(pg, { x: 200, y: y, width: 80, height: 18 });
+    y -= 30;
+    testo('quadroC indirizzo');
     const aperto = await ModuliPdf.apri(await doc.save());
     const A = compilaModulo(Object.assign({ soggetto: 'p-io' }, fam), costruisciF(false), { api: true });
     const valori = ModuliPdf.proponi(aperto.campi, A).map(function (x) { return x.valore; });
@@ -264,10 +293,12 @@ function leggiAttesi(attr) {
       nascita: t('DataNascita'), coniuge: t('Testo5'), targa: t('Targa'), vuoto: t('Testo7'),
       m: fm.getCheckBox('Sesso_M').isChecked(), f: fm.getCheckBox('Sesso_F').isChecked(),
       prov: fm.getDropdown('Provincia').getSelected().join(','), problemi: fatto.problemi.join(','),
+      caselle: t('quadroB data di nascita'), serie: t('codice fiscale 1') + t('codice fiscale 2'),
+      strada: fm.getDropdown('TIPOLOGIA').getSelected().join(','), via: t('quadroC indirizzo'),
     };
   }, FAMIGLIA);
-  const attesoPdf = { campi: 10, cognome: 'Rossi', nome: 'Mario', cf: 'RSSMRA80C12H501E', nascita: '12/03/1980', coniuge: 'Lucia Verdi',
-    targa: 'AB123CD', vuoto: '', m: true, f: false, prov: 'RM', problemi: '' };
+  const attesoPdf = { campi: 15, cognome: 'Rossi', nome: 'Mario', cf: 'RSSMRA80C12H501E', nascita: '12/03/1980', coniuge: 'Lucia Verdi',
+    targa: 'AB123CD', vuoto: '', m: true, f: false, prov: 'RM', problemi: '', caselle: '12031980', serie: '', strada: 'VIA', via: 'Appia Nuova' };
   Object.keys(attesoPdf).forEach(function (k) { controlla('pdf ' + k, p[k], attesoPdf[k]); });
 
   // 6. L'app: dati della versione 1 spostati nella cassaforte, scheda Famiglia, blocco e sblocco
